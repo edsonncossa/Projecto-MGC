@@ -1,0 +1,259 @@
+<div class="dialog-container">
+  <!-- Header -->
+  <div class="dialog-header">
+    <div class="header-left">
+      <h2 mat-dialog-title>
+        <i class="fa-solid fa-chart-simple"></i>
+        {{ tituloDialog }}
+        <!--Título dinâmico -->
+      </h2>
+    </div>
+
+    <button mat-icon-button (click)="fechar()" class="btn-close" aria-label="Fechar diálogo">
+      <i class="fa-solid fa-xmark"></i>
+    </button>
+  </div>
+
+  <!-- Content -->
+  <mat-dialog-content>
+    <!-- <div *ngIf="isLoading" class="loading">
+      <mat-progress-spinner
+        mode="indeterminate"
+        diameter="40"
+      ></mat-progress-spinner>
+    </div> -->
+
+    <!-- Informação do stock selecionado -->
+    <div *ngIf="stockSelecionado" class="stock-info">
+      <i class="fa-solid fa-box"></i>
+      <span
+        ><strong>Produto:</strong> {{ stockSelecionado.product?.name }}</span
+      >
+      <span *ngIf="stockSelecionado.product?.name"
+        ><strong>Ref:</strong> {{ stockSelecionado.product?.reference }}</span
+      >
+    </div>
+
+    <div  class="counters-grid">
+      <!-- Total de Lançamentos -->
+      <div
+        class="counter-card blue"
+        matTooltip="Quantidade total de registros de estoque cadastrados no sistema"
+        matTooltipPosition="above"
+        matTooltipClass="tooltip-custom"
+      >
+        <div class="card-header">
+          <span class="card-title">
+            Total de Lançamentos
+            <i
+              class="fa-solid fa-circle-info info-icon"
+              matTooltip="Quantidade total de registros de estoque cadastrados no sistema"
+              matTooltipPosition="above"
+              matTooltipClass="tooltip-custom"
+            ></i>
+          </span>
+          <i class="fa-solid fa-arrow-right-arrow-left"></i>
+        </div>
+        <div class="card-value">{{ counters.totalLancamentos }}</div>
+      </div>
+
+      <!-- Entradas -->
+      <div
+        class="counter-card green"
+        matTooltip="Soma de todas as entradas de produtos no estoque"
+        matTooltipPosition="above"
+        matTooltipClass="tooltip-custom"
+      >
+        <div class="card-header">
+          <span class="card-title">
+            Entradas
+            <i
+              class="fa-solid fa-circle-info info-icon"
+              matTooltip="Soma de todas as entradas de produtos no estoque"
+              matTooltipPosition="above"
+              matTooltipClass="tooltip-custom"
+            ></i>
+          </span>
+          <i class="fa-solid fa-arrow-down"></i>
+        </div>
+        <div class="card-value">{{ counters.totalEntradas }}</div>
+      </div>
+
+      <!-- Saídas -->
+      <div
+        class="counter-card red"
+        matTooltip="Soma de todas as saídas de produtos do estoque"
+        matTooltipPosition="above"
+        matTooltipClass="tooltip-custom"
+      >
+        <div class="card-header">
+          <span class="card-title">
+            Saídas
+            <i
+              class="fa-solid fa-circle-info info-icon"
+              matTooltip="Soma de todas as saídas de produtos do estoque"
+              matTooltipPosition="above"
+              matTooltipClass="tooltip-custom"
+            ></i>
+          </span>
+          <i class="fa-solid fa-arrow-up"></i>
+        </div>
+        <div class="card-value">{{ counters.totalSaidas }}</div>
+      </div>
+
+      <!-- Estoque Atual -->
+      <div
+        class="counter-card teal"
+        matTooltip="Quantidade atual disponível em estoque (Entradas - Saídas)"
+        matTooltipPosition="above"
+        matTooltipClass="tooltip-custom"
+      >
+        <div class="card-header">
+          <span class="card-title">
+            Estoque Atual
+            <i
+              class="fa-solid fa-circle-info info-icon"
+              matTooltip="Quantidade atual disponível em estoque (Entradas - Saídas)"
+              matTooltipPosition="above"
+              matTooltipClass="tooltip-custom"
+            ></i>
+          </span>
+          <i class="fa-solid fa-boxes-stacked"></i>
+        </div>
+        <div class="card-value">{{ counters.estoqueAtual }}</div>
+      </div>
+    </div>
+
+    <!-- Título da seção de movimentações -->
+    <div class="section-header">
+      <h2><i class="fa-solid fa-arrow-right-arrow-left"></i> Movimentações de Estoque</h2>
+    </div>
+
+    <!-- Trabasadsad -->
+    <div class="toolbar">
+      <mat-form-field appearance="outline" class="filter-field">
+        <mat-label>Pesquisar movimentações</mat-label>
+        <input
+          matInput
+          (keyup)="applyFilter($event)"
+          placeholder="Ex: Produto, tipo..."
+        />
+        <button mat-icon-button matSuffix aria-label="Pesquisar">
+          <i class="fa-solid fa-magnifying-glass"></i>
+        </button>
+      </mat-form-field>
+
+      <button mat-raised-button class="btn-add" (click)="abrirDialog(stockSelecionado)">
+        <i class="fa-solid fa-arrow-right-arrow-left"></i>
+        Registrar Movimentação
+      </button>
+    </div>
+
+    <div class="mat-elevation-z4">
+      <mat-table mat-table [dataSource]="dataSource" matSort>
+        <!-- Nome do Produto -->
+        <ng-container matColumnDef="product">
+          <mat-header-cell *matHeaderCellDef mat-sort-header
+            >Nome</mat-header-cell
+          >
+          <mat-cell *matCellDef="let movement">{{
+            movement.stock.product.name
+          }}</mat-cell>
+        </ng-container>
+
+        <!-- Quantidade com Pipe -->
+        <ng-container matColumnDef="quantity">
+          <mat-header-cell *matHeaderCellDef mat-sort-header>
+            Quantidade
+          </mat-header-cell>
+          <mat-cell *matCellDef="let movement">
+            <span [class]="movement | movementType">
+              {{ movement.quantity | number }}
+            </span>
+          </mat-cell>
+        </ng-container>
+
+        <!-- Tipo formatado -->
+        <!-- Tipo com Ícones -->
+        <ng-container matColumnDef="type">
+          <mat-header-cell *matHeaderCellDef mat-sort-header>
+            Tipo
+          </mat-header-cell>
+          <mat-cell *matCellDef="let movement">
+                    <i
+            class="fa-solid"
+            [class.fa-arrow-down]="movement.type === 'ENTRY'"
+            [class.fa-arrow-up]="movement.type === 'EXIT'"
+            [ngStyle]="{'color': movement.type === 'ENTRY' ? '#28a745' : '#dc3545'}"
+            matTooltip="{{ movement.type === 'ENTRY' ? 'Entrada' : 'Saída' }}"
+            matTooltipPosition="above"
+          > </i> {{  getMovementLabel(movement) }}
+          </mat-cell>
+        </ng-container>
+
+        <ng-container matColumnDef="createdAt">
+          <mat-header-cell *matHeaderCellDef mat-sort-header>
+            Data
+          </mat-header-cell>
+
+          <mat-cell *matCellDef="let movement">
+            {{ movement.createdDate | date: "dd/MM/yyyy HH:mm" }}
+          </mat-cell>
+        </ng-container>
+
+        <!-- Ações -->
+        <!-- <ng-container matColumnDef="action">
+          <mat-header-cell *matHeaderCellDef>Ações</mat-header-cell>
+          <mat-cell *matCellDef="let movement">
+            <button
+              mat-icon-button
+              color="primary"
+              (click)="onEdit(movement)"
+              matTooltip="Editar movimentação"
+            >
+              <i class="fa-solid fa-pen-to-square"></i>
+            </button>
+            <button
+              mat-icon-button
+              color="warn"
+              (click)="onDelete(movement)"
+              matTooltip="Excluir movimentação"
+            >
+              <i class="fa-solid fa-trash"></i>
+            </button>
+          </mat-cell>
+        </ng-container> -->
+
+        <!-- Header / Rows -->
+        <mat-header-row *matHeaderRowDef="displayedColumns"></mat-header-row>
+        <mat-row *matRowDef="let movement; columns: displayedColumns"></mat-row>
+
+        <!-- Sem dados -->
+        <tr class="mat-row" *matNoDataRow>
+          <td class="mat-cell" colspan="4">
+            Não há movimentações para exibir.
+          </td>
+        </tr>
+      </mat-table>
+
+      <mat-paginator
+        [length]="totalElements"
+        [pageSize]="pageSize"
+        [pageIndex]="pageIndex"
+        [pageSizeOptions]="[5, 10, 20]"
+        showFirstLastButtons
+        (page)="onPageChange($event)"
+      >
+        Handler de paginação
+      </mat-paginator>
+    </div>
+  </mat-dialog-content>
+
+  <!-- Actions -->
+  <mat-dialog-actions align="end">
+    <button mat-button (click)="fechar()" type="button" class="btn-cancel">
+      <i class="fa-regular fa-circle-xmark"></i>
+      Fechar
+    </button>
+  </mat-dialog-actions>
+</div>

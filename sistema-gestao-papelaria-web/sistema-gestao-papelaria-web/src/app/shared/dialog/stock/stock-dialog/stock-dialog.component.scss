@@ -1,0 +1,581 @@
+
+.dialog-container {
+  min-width: 900px;
+  max-width: 1400px;
+}
+
+.dialog-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 24px;
+  border-bottom: 1px solid #e0e0e0;
+  gap: 16px;
+
+  .header-left {
+    flex: 1;
+
+    h2 {
+      margin: 0;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-size: 20px;
+      color: #333;
+
+      i {
+        font-size: 24px;
+        line-height: 1;
+        color: #1976d2;
+      }
+    }
+  }
+
+  .btn-close {
+    color: #999;
+
+    &:hover {
+      color: #333;
+    }
+  }
+}
+
+mat-dialog-content {
+  padding: 24px;
+  min-height: 150px;
+}
+
+.loading {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 150px;
+}
+
+.counters-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+}
+
+.counter-card {
+  background: white;
+  border-radius: 8px;
+  padding: 16px 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  position: relative;
+  overflow: hidden;
+  transition: transform 0.2s, box-shadow 0.2s;
+  text-align: center;
+  cursor: help; //Indica que há informação adicional
+
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    transition: height 0.2s;
+  }
+
+  &.blue::before {
+    background: #1976d2;
+  }
+
+  &.green::before {
+    background: #4caf50;
+  }
+
+  &.red::before {
+    background: #f44336;
+  }
+
+  &.teal::before {
+    background: #009688;
+  }
+
+  &:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+
+    &::before {
+      height: 6px;
+    }
+
+    // Destaque no ícone de info ao passar o mouse
+    .info-icon {
+      opacity: 1;
+      transform: scale(1.1);
+    }
+  }
+
+  .card-header {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 12px;
+
+    .card-title {
+      font-size: 13px;
+      color: #666;
+      font-weight: 500;
+      text-align: center;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+
+      // Ícone de informação
+      .info-icon {
+        font-size: 14px;
+        color: #1976d2;
+        opacity: 0.6;
+        transition: opacity 0.2s, transform 0.2s;
+        cursor: help;
+
+        &:hover {
+          opacity: 1;
+        }
+      }
+    }
+
+    i {
+      font-size: 20px;
+      opacity: 0.8;
+    }
+  }
+
+  .card-value {
+    font-size: 36px;
+    font-weight: 600;
+    line-height: 1;
+  }
+}
+
+mat-dialog-actions {
+  padding: 16px 24px;
+  border-top: 1px solid #e0e0e0;
+}
+
+// Tooltip Customizado
+::ng-deep .tooltip-custom {
+  background: #333 !important;
+  color: white !important;
+  font-size: 13px !important;
+  font-weight: 500 !important;
+  padding: 12px 16px !important;
+  border-radius: 6px !important;
+  max-width: 280px !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3) !important;
+
+  .mat-tooltip-arrow {
+    color: #333 !important;
+  }
+}
+
+// Responsivo
+@media (max-width: 1024px) {
+  .dialog-container {
+    min-width: auto;
+    max-width: 95vw;
+  }
+
+  .counters-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .counter-card {
+    padding: 20px;
+  }
+
+  .card-value {
+    font-size: 42px;
+  }
+}
+
+@media (max-width: 600px) {
+  .counters-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .card-value {
+    font-size: 32px !important;
+  }
+
+  .card-title {
+    font-size: 12px;
+  }
+}
+
+.stock-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  background: #f5f5f5;
+  border-radius: 8px;
+  margin-bottom: 16px;
+  font-size: 14px;
+  color: #333;
+
+  i {
+    font-size: 18px;
+    color: #1976d2;
+  }
+
+  span {
+    margin-right: 16px;
+
+    strong {
+      color: #666;
+      margin-right: 4px;
+    }
+  }
+}
+
+.movements-section {
+  margin-top: 32px;
+  padding-top: 24px;
+  border-top: 1px solid #e0e0e0;
+}
+
+.section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+  gap: 16px;
+
+  h3 {
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 18px;
+    color: #333;
+
+    i {
+      color: #1976d2;
+    }
+  }
+
+  .filters {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    align-items: flex-end;
+
+    .filter-field {
+      min-width: 180px;
+      font-size: 14px;
+
+      ::ng-deep .mat-form-field-wrapper {
+        padding-bottom: 0;
+      }
+
+      ::ng-deep .mat-form-field-flex {
+        padding: 0 8px;
+        height: 40px;
+      }
+
+      ::ng-deep .mat-form-field-infix {
+        padding: 8px 0;
+      }
+    }
+
+    .btn-clear-filters {
+      margin-bottom: 8px;
+      height: 40px;
+    }
+  }
+}
+
+// ===== Tabela =====
+.table-container {
+  border-radius: 8px;
+  overflow: hidden;
+  margin-bottom: 8px;
+}
+
+.movements-table {
+  width: 100%;
+
+  th.mat-header-cell {
+    font-weight: 600;
+    color: #666;
+    font-size: 13px;
+    background: #f5f5f5;
+    padding: 12px 16px;
+  }
+
+  td.mat-cell {
+    padding: 12px 16px;
+    font-size: 14px;
+    color: #333;
+    border-bottom: 1px solid #eee;
+  }
+
+  // Produto
+  .product-info {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+
+    .product-name {
+      font-weight: 500;
+    }
+
+    .product-ref {
+      font-size: 12px;
+      color: #999;
+    }
+  }
+
+  // Data/Hora
+  .datetime-info {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+
+    .date {
+      font-weight: 500;
+    }
+
+    .time {
+      font-size: 12px;
+      color: #999;
+    }
+  }
+
+  // Quantidade com badge colorido
+  .quantity-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-weight: 600;
+    font-size: 13px;
+
+    &.entry {
+      background: #e8f5e9;
+      color: #2e7d32;
+    }
+
+    &.output {
+      background: #ffebee;
+      color: #c62828;
+    }
+
+    i {
+      font-size: 11px;
+    }
+  }
+
+  // Placeholder / Sem dados
+  .no-data {
+    padding: 40px !important;
+    text-align: center;
+
+    .no-data-content {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
+      color: #999;
+
+      i {
+        font-size: 48px;
+        opacity: 0.5;
+      }
+
+      p {
+        margin: 0;
+        font-size: 14px;
+        line-height: 1.5;
+      }
+
+      .badge-placeholder {
+        background: #fff3e0;
+        color: #ef6c00;
+        padding: 4px 12px;
+        border-radius: 12px;
+        font-size: 12px;
+        font-weight: 500;
+        margin-top: 8px;
+      }
+    }
+  }
+}
+
+// Paginação desabilitada
+mat-paginator[disabled] {
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+// ===== Responsivo =====
+@media (max-width: 768px) {
+  .section-header {
+    flex-direction: column;
+    align-items: stretch;
+
+    .filters {
+      justify-content: center;
+    }
+  }
+
+  .filters {
+    flex-direction: column;
+
+    .filter-field {
+      width: 100%;
+      min-width: auto;
+    }
+  }
+}
+
+.btn-cancel {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: #F3F4F6;
+  color: #6B7280;
+  border: 1px solid #D1D5DB;
+  padding: 0 16px;
+  height: 36px;
+  font-size: 14px;
+  font-weight: 500;
+  text-transform: none;
+  letter-spacing: 0;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+
+  &:hover {
+    background: #E5E7EB;
+    border-color: #9CA3AF;
+  }
+
+  &:active {
+    background: #D1D5DB;
+  }
+
+  i {
+    font-size: 18px;
+    line-height: 1;
+  }
+}
+
+.toolbar {
+  display: flex;
+  justify-content: space-between;
+  /*  separa os dois lados */
+  align-items: center;
+  margin: 10px 0;
+  margin-top: 30px;
+}
+
+.filter-field {
+  width: 300px;
+
+  ::ng-deep .mat-form-field-wrapper {
+    padding-bottom: 0; // Remove o espaço reservado para o erro/hint
+  }
+
+  ::ng-deep .mat-form-field-flex {
+    height: 56px; // Mesma altura do botão .btn-add
+    padding: 0 16px;
+    box-sizing: border-box;
+    align-items: center; // Centraliza verticalmente o conteúdo
+  }
+
+  ::ng-deep .mat-form-field-infix {
+    padding: 14px 0; // Ajuste fino para centralizar o texto (56px - 14px*2 ≈ 28px área do input)
+    width: auto;
+    border-top: 0; // Remove bordas extras se houver
+  }
+
+  ::ng-deep .mat-input-element {
+    margin-top: 0;
+    margin-bottom: 0;
+    height: auto;
+  }
+
+  // Ajuste para o label flutuante não sobrepor
+  ::ng-deep .mat-form-field-label-wrapper {
+    top: -1.5em;
+    padding-top: 1.5em;
+  }
+
+  // Garante que o ícone de busca (suffix) fique centralizado
+  ::ng-deep .mat-form-field-suffix {
+    display: flex;
+    align-items: center;
+    height: 100%;
+
+    button.mat-icon-button {
+      width: 24px;
+      height: 24px;
+      line-height: 24px;
+    }
+  }
+}
+
+
+.btn-add {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px; // Espaço entre ícone e texto
+  height: 56px;
+  padding: 0 24px;
+  background-color: #d32f2f;
+  color: #ffffff;
+  font-size: 14px;
+  font-weight: 500;
+  text-transform: none;
+  letter-spacing: 0;
+  border-radius: 4px;
+  box-shadow: 0 2px 4px rgba(211, 47, 47, 0.2);
+  transition: all 0.2s ease;
+  margin-left: auto;
+
+  &:hover {
+    background-color: #b71c1c;
+    box-shadow: 0 4px 8px rgba(211, 47, 47, 0.3);
+  }
+
+  &:active {
+    background-color: #b71c1c;
+    box-shadow: 0 1px 2px rgba(211, 47, 47, 0.2);
+  }
+
+  i {
+    font-size: 18px;
+    line-height: 1;
+  }
+}
+
+.section-header {
+  margin: 24px 0 16px 0;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #e0e0e0;
+
+  h2 {
+    margin: 0;
+    font-weight: 600;
+    color: #333;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 20px;
+
+    i {
+      color: #1976d2;
+      font-size: 16px;
+    }
+  }
+}

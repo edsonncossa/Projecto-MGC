@@ -1,0 +1,67 @@
+<form [formGroup]="updateForm" (ngSubmit)="onSubmit()">
+  <mat-card>
+    <mat-card-content class="form-container">
+      
+      <div class="form-row">
+        <mat-form-field appearance="outline" class="form-field">
+          <mat-label>Selecione o Cliente</mat-label>
+          <mat-select formControlName="clienteSelecionadoId" placeholder="Selecione um cliente...">
+            <mat-option *ngFor="let cliente of listaClientes" [value]="cliente.id">
+              {{ cliente.firstName }}
+            </mat-option>
+          </mat-select>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline" class="form-field">
+          <mat-label>Selecionar Corretor</mat-label>
+          <mat-select formControlName="correctorId" placeholder="Selecione um corretor...">
+            <mat-option *ngFor="let corrector of listaCorrectores" [value]="corrector.id">
+              {{ corrector.name }}
+            </mat-option>
+          </mat-select>
+        </mat-form-field>
+      </div>
+
+      <div class="form-row">
+        <mat-form-field appearance="outline" class="form-field">
+          <mat-label>Colaborador que fez a substituição</mat-label>
+          <input matInput formControlName="colaboradorSubstituicao" placeholder="Nome do colaborador">
+        </mat-form-field>
+
+        <mat-form-field appearance="outline" class="form-field">
+          <mat-label>Download efetuado?</mat-label>
+          <mat-select formControlName="fezDownload">
+            <mat-option [value]="true">Sim</mat-option>
+            <mat-option [value]="false">Não</mat-option>
+          </mat-select>
+        </mat-form-field>
+      </div>
+
+      <div class="form-row full-width-row" *ngIf="updateForm.get('fezDownload')?.value === false">
+        <mat-form-field appearance="outline" class="form-field">
+          <mat-label>Motivo de não ter feito o download</mat-label>
+          <textarea 
+            matInput 
+            formControlName="motivoNaoDownload" 
+            placeholder="Explique sucintamente o motivo..." 
+            rows="2">
+          </textarea>
+        </mat-form-field>
+      </div>
+
+      <div class="form-row full-width-row">
+        <mat-form-field appearance="outline" class="form-field">
+          <mat-label>Motivo da atualização</mat-label>
+          <textarea matInput formControlName="motivoAtualizacao" rows="3"></textarea>
+        </mat-form-field>
+      </div>
+
+    </mat-card-content>
+
+    <mat-card-actions align="end">
+      <button mat-raised-button color="primary" type="submit" [disabled]="updateForm.invalid">
+        Submeter Actualização
+      </button>
+    </mat-card-actions>
+  </mat-card>
+</form>

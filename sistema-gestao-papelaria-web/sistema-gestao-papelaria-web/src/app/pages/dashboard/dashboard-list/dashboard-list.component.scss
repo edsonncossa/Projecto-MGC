@@ -1,0 +1,446 @@
+.dashboard-wrapper {
+  padding: 10px 0;
+}
+
+/* KPI Cards em Grid Horizontal */
+.kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+
+  @media (max-width: 1200px) { 
+    grid-template-columns: repeat(2, 1fr); 
+  }
+  
+  @media (max-width: 576px) { 
+    grid-template-columns: 1fr; 
+  }
+}
+
+.card-kpi {
+  border-radius: 8px;
+  padding: 20px 24px;
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  }
+
+  .kpi-title { 
+    font-size: 0.85rem; 
+    font-weight: 500; 
+    opacity: 0.9; 
+    display: block; 
+    margin-bottom: 6px; 
+  }
+
+  .kpi-value { 
+    font-size: 1.75rem; 
+    font-weight: 700; 
+    margin: 0; 
+    line-height: 1; 
+
+    small { 
+      font-size: 0.9rem; 
+    } 
+  }
+
+  .kpi-icon nb-icon { 
+    font-size: 2.8rem; 
+    opacity: 0.35; 
+  }
+
+  &.kpi-blue { background: linear-gradient(135deg, #2563eb, #1d4ed8); }
+  &.kpi-green { background: linear-gradient(135deg, #059669, #047857); }
+  &.kpi-orange { background: linear-gradient(135deg, #d97706, #b45309); }
+  &.kpi-cyan { background: linear-gradient(135deg, #0891b2, #0e7490); }
+
+  .text-white-50 {
+    color: rgba(255, 255, 255, 0.8) !important;
+  }
+
+  .input-sm {
+    background-color: rgba(255, 255, 255, 0.2);
+    border: 1px solid rgba(255, 255, 255, 0.4);
+    color: #ffffff;
+    font-size: 0.85rem;
+    border-radius: 6px;
+    padding: 4px 8px;
+
+    &::placeholder {
+      color: rgba(255, 255, 255, 0.6);
+    }
+
+    &:focus {
+      background-color: rgba(255, 255, 255, 0.3);
+      border-color: #ffffff;
+      outline: none;
+    }
+  }
+}
+
+/* Disposição Dividida 50% / 50% para Gráficos */
+.charts-row-split {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+
+  @media (max-width: 992px) {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Containers dos Gráficos com Dimensão Total Garantida */
+.chart-container-donut {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  height: 350px;
+  padding: 12px;
+
+  .donut-wrapper {
+    height: 180px;
+    width: 100%;
+  }
+}
+
+.chart-container {
+  height: 350px;
+  width: 100%;
+
+  ::ng-deep ngx-charts-bar-horizontal {
+    .bar {
+      max-height: 45px;
+    }
+  }
+}
+
+.chart-container-full {
+  height: 400px;
+  width: 100%;
+}
+
+/* Lista de Progresso Clean */
+.client-progress-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 8px;
+
+  .progress-info {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.82rem;
+
+    .client-name { 
+      font-weight: 500; 
+      color: #334155; 
+    }
+
+    .client-percent { 
+      font-weight: 700; 
+      color: #0f172a; 
+    }
+  }
+
+  .progress-bar-bg {
+    height: 7px;
+    background-color: #f1f5f9;
+    border-radius: 4px;
+    overflow: hidden;
+  }
+
+  .progress-bar-fill {
+    height: 100%;
+    border-radius: 4px;
+    transition: width 0.4s ease;
+  }
+}
+
+.card-header-flex {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  .header-title { 
+    display: flex; 
+    align-items: center; 
+    gap: 8px; 
+    font-weight: 600; 
+  }
+}
+
+.empty-state {
+  text-align: center;
+  padding: 60px 10px;
+  color: #94a3b8;
+
+  nb-icon { 
+    font-size: 40px; 
+    margin-bottom: 6px; 
+  }
+
+  p { 
+    margin: 0; 
+    font-size: 0.88rem; 
+  }
+}
+
+/* Painel de Filtros */
+.filter-panel {
+  margin-bottom: 24px;
+
+  .filter-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px;
+    align-items: flex-end;
+
+    .filter-control {
+      display: flex;
+      flex-direction: column;
+      flex: 1 1 180px;
+      min-width: 140px;
+
+      .label {
+        font-size: 0.8rem;
+        font-weight: 600;
+        color: #64748b;
+        margin-bottom: 6px;
+        white-space: nowrap;
+      }
+
+      nb-select,
+      input {
+        width: 100% !important;
+      }
+
+      /* Truncamento de texto para seletores do Nebular */
+      ::ng-deep nb-select {
+        width: 100% !important;
+
+        .select-button {
+          width: 100% !important;
+          max-width: 100% !important;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+      }
+    }
+
+    /* ESTILIZAÇÃO IDENTICA À CAIXA DOS FILTROS DO NEBULAR */
+    .btn-certificate-wrapper {
+      display: flex;
+      flex-direction: column;
+      flex: 0 0 auto;
+      min-width: 180px;
+
+      .label {
+        user-select: none;
+        font-size: 0.8rem;
+        font-weight: 600;
+        color: #64748b;
+        margin-bottom: 6px;
+        display: block;
+      }
+
+      /* Moldura idêntica à do Nebular Select */
+      .certificate-input-box {
+        background-color: #f7f9fc;
+        border: 1px solid #e4e9f2;
+        border-radius: 0.25rem;
+        padding: 0.25rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        height: 48px; /* Altura total do container idêntica ao wrapper do select */
+        box-sizing: border-box;
+
+        .btn-emitir-certificado {
+          width: 100%;
+          height: 100%;
+          border: none !important;
+          border-radius: 0.15rem;
+          font-weight: 600;
+          white-space: nowrap;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          gap: 8px;
+          box-shadow: none !important;
+          padding: 0 16px;
+          
+          &:hover {
+            opacity: 0.92;
+          }
+        }
+      }
+    }
+  }
+}
+
+/* Evita que o Flexbox/Grid force a expansão horizontal do card */
+nb-card {
+  width: 100%;
+  max-width: 100%;
+  
+  nb-card-body {
+    min-width: 0; /* Essencial para contêineres Flexbox não transbordarem */
+    width: 100%;
+    overflow: hidden;
+    padding: 1rem;
+  }
+}
+
+/* Container responsivo que força limite rígido ao gráfico */
+.chart-container {
+  width: 100%;
+  height: 320px; /* Defina a altura padrão desejada */
+  position: relative;
+  overflow: hidden; /* Bloqueia qualquer transbordo externo */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  /* Força a renderização do SVG do ngx-charts a respeitar os limites */
+  ::ng-deep {
+    ngx-charts-advanced-pie-chart,
+    ngx-charts-bar-horizontal,
+    ngx-charts-line-chart,
+    ngx-charts-pie-chart {
+      width: 100% !important;
+      height: 100% !important;
+
+      svg {
+        width: 100% !important;
+        max-width: 100% !important;
+      }
+    }
+
+    /* Ajusta legendas e textos compridos para não cortarem de forma desordenada */
+    .advanced-pie-legend,
+    .chart-legend {
+      max-width: 50% !important;
+      overflow: hidden;
+      
+      .legend-items {
+        max-height: 280px;
+        overflow-y: auto;
+      }
+      
+      .legend-label-text {
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+    }
+  }
+}
+
+.chart-container-bar {
+  width: 100%;
+  height: 380px; /* Aumenta a altura útil para distribuir as barras */
+  padding: 1rem;
+  overflow: hidden;
+
+  .chart-box-bar {
+    width: 100%;
+    height: 100%;
+    position: relative;
+
+    ::ng-deep {
+      ngx-charts-bar-horizontal {
+        svg {
+          width: 100% !important;
+          height: 100% !important;
+        }
+
+        /* Garante espaço para o texto das empresas no Eixo Y */
+        .y.axis {
+          .tick text {
+            font-size: 12px;
+            font-weight: 600;
+            fill: #222b45;
+          }
+        }
+
+        /* Ajusta os rótulos de valores dentro/fora da barra */
+        .data-label {
+          font-size: 11px;
+          font-weight: 700;
+          fill: #222b45;
+        }
+      }
+    }
+  }
+}
+
+.yearly-energy-section {
+  /* Linha divisória e respiro em relação aos filtros superiores */
+  border-top: 1px solid var(--border-basic-color, #edf1f7);
+  margin-top: 1.75rem !important;
+  padding-top: 1.25rem !important;
+
+  .yearly-section-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 1.25rem; /* Mais espaço entre o título e os campos */
+
+    label {
+      font-size: 0.85rem;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+  }
+
+  .monthly-energy-grid {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr); 
+    gap: 16px 12px; /* 16px de espaço vertical entre as duas linhas de meses */
+
+    .filter-control {
+      display: flex;
+      flex-direction: column;
+
+      .label {
+        font-size: 0.75rem;
+        margin-bottom: 6px; /* Espaço entre o rótulo do mês e o input */
+        color: var(--text-hint-color, #8f9bb3);
+      }
+
+      input {
+        height: 38px;
+        font-size: 0.85rem;
+      }
+    }
+  }
+}
+
+/* Responsividade */
+@media (max-width: 1200px) {
+  .yearly-energy-section .monthly-energy-grid {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+@media (max-width: 768px) {
+  .yearly-energy-section .monthly-energy-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@media (max-width: 480px) {
+  .yearly-energy-section .monthly-energy-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}

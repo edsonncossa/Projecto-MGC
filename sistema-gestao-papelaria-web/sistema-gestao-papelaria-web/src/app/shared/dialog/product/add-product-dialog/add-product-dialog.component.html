@@ -1,0 +1,117 @@
+<h2 mat-dialog-title class="dialog-title">
+  <i
+    class="fa-solid"
+    [class.fa-plus]="!isEditMode && !isViewMode"
+    [class.fa-user-pen]="isEditMode"
+    [class.fa-eye]="isViewMode"
+  >
+  </i>
+
+  {{
+    isViewMode
+      ? "Visualizar Produto"
+      : isEditMode
+        ? "Editar Produto"
+        : "Novo Produto"
+  }}
+</h2>
+
+<mat-dialog-content [formGroup]="form" [class.view-mode]="isViewMode">
+  <div class="row">
+    <mat-form-field appearance="fill">
+      <mat-label>Nome</mat-label>
+      <input matInput formControlName="name" [readonly]="isViewMode" />
+      <mat-error *ngIf="form.get('name')?.hasError('required')">
+        Nome é obrigatório
+      </mat-error>
+    </mat-form-field>
+  </div>
+  <div class="row">
+    <mat-form-field appearance="fill">
+      <mat-label>Descrição</mat-label>
+      <textarea
+        matInput
+        formControlName="description"
+        rows="4"
+        [readonly]="isViewMode"
+      ></textarea>
+      <mat-error *ngIf="form.get('description')?.hasError('required')">
+        Descrição é obrigatória
+      </mat-error>
+    </mat-form-field>
+  </div>
+
+  <div class="row">
+    <mat-form-field appearance="fill">
+      <mat-label>Preço</mat-label>
+
+      <input
+        matInput
+        formControlName="unitPrice"
+        type="text"
+        currencyMzn
+        placeholder="0,00"
+        inputmode="decimal"
+        [readonly]="isViewMode"
+      />
+
+      <mat-error *ngIf="form.get('unitPrice')?.hasError('required')">
+        Preço é obrigatório
+      </mat-error>
+      <mat-error *ngIf="form.get('unitPrice')?.hasError('min')">
+        Preço deve ser maior que zero
+      </mat-error>
+    </mat-form-field>
+
+    <mat-form-field appearance="fill" class="full">
+      <mat-label>Categoria</mat-label>
+
+      <mat-select formControlName="categoryId" [disabled]="isViewMode">
+        <mat-option *ngFor="let cat of categories" [value]="cat.id">
+          {{ cat.name }}
+        </mat-option>
+      </mat-select>
+
+      <mat-error *ngIf="form.get('categoryId')?.hasError('required')">
+        Categoria é obrigatória
+      </mat-error>
+    </mat-form-field>
+  </div>
+
+  <div class="row">
+    <div class="full image-upload">
+      <label>Imagem do Produto</label>
+
+      <input
+        type="file"
+        (change)="onFileSelected($event)"
+        accept="image/*"
+        *ngIf="!isViewMode"
+      />
+
+      <!-- Preview da imagem -->
+      <div *ngIf="imagePreview" class="image-preview-container">
+        <img [src]="imagePreview" alt="Produto" />
+      </div>
+    </div>
+  </div>
+</mat-dialog-content>
+
+<mat-dialog-actions align="end">
+  <button mat-button (click)="cancelar()" type="button" class="btn-cancel">
+    <i class="fa-regular fa-circle-xmark"></i>
+    Cancelar
+  </button>
+  <!-- Botão Salvar com Loading -->
+  <button
+    mat-raised-button
+    (click)="salvar()"
+    [disabled]="form.invalid || isLoading"
+    type="submit"
+    class="btn-save"
+    *ngIf="!isViewMode"
+  >
+    <i *ngIf="!isLoading" class="fa-regular fa-floppy-disk"></i>
+    Salvar
+  </button>
+</mat-dialog-actions>

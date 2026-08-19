@@ -1,0 +1,322 @@
+<div class="dashboard-wrapper">
+
+  <!-- 1. PAINEL DE METRICAS (KPI CARDS) -->
+  <div class="kpi-grid mb-4">
+    
+    <!-- Volume Total m³ -->
+    <div class="card-kpi kpi-blue">
+      <div class="kpi-info">
+        <span class="kpi-title">Consumo Real Total (m³)</span>
+        <h3 class="kpi-value">{{ totalVolumeConsumido | number:'1.2-2' }} <small>m³</small></h3>
+      </div>
+      <div class="kpi-icon">
+        <nb-icon icon="droplet" pack="eva"></nb-icon>
+      </div>
+    </div>
+
+    <!-- Energia Total GJ -->
+    <div class="card-kpi kpi-orange">
+      <div class="kpi-info">
+        <span class="kpi-title">Energia Total (GJ)</span>
+        <h3 class="kpi-value">{{ totalEnergiaConsumidaGJ | number:'1.2-2' }} <small>GJ</small></h3>
+      </div>
+      <div class="kpi-icon">
+        <nb-icon icon="flash-outline" pack="eva"></nb-icon>
+      </div>
+      <div class="filter-control mt-2">
+        <label class="label text-white-50" for="energyInput">Energy Content (MJ/m³)</label>
+        <input 
+          id="energyInput"
+          nbInput 
+          type="number" 
+          step="0.01" 
+          [(ngModel)]="energyContentMjSm3" 
+          (ngModelChange)="onEnergyContentChange()" 
+          placeholder="Ex: 38.0" 
+          class="full-width-input input-sm" />
+      </div>
+    </div>
+
+    <!-- Média Diária (m³ e GJ) -->
+    <div class="card-kpi kpi-cyan">
+      <div class="kpi-info">
+        <span class="kpi-title">Média Diária Real</span>
+        <h3 class="kpi-value">
+          {{ mediaConsumoDiarioM3 | number:'1.1-1' }} <small>m³/dia</small>
+        </h3>
+        <span class="kpi-subtext">~ {{ mediaConsumoDiarioGJ | number:'1.1-1' }} GJ/dia</span>
+      </div>
+      <div class="kpi-icon">
+        <nb-icon icon="trending-up" pack="eva"></nb-icon>
+      </div>
+    </div>
+
+    <!-- Clientes / Registos -->
+    <div class="card-kpi kpi-green">
+      <div class="kpi-info">
+        <span class="kpi-title">Clientes / Registos</span>
+        <h3 class="kpi-value">{{ totalClientes }} <small>cli.</small></h3>
+        <span class="kpi-subtext">{{ totalRegistos }} leituras</span>
+      </div>
+      <div class="kpi-icon">
+        <nb-icon icon="people" pack="eva"></nb-icon>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- 2. PAINEL DE FILTROS -->
+<!-- 2. PAINEL DE FILTROS -->
+<nb-card class="filter-panel mb-4">
+  <nb-card-body>
+    <div class="filter-grid">
+      
+      <!-- Cliente -->
+      <div class="filter-control">
+        <label class="label">Cliente</label>
+        <nb-select
+          placeholder="Selecione o Cliente"
+          [(ngModel)]="selectedClientId"
+          (selectedChange)="onClienteSelecionadoChange($event)"
+          fullWidth>
+          <nb-option value="ALL">🏢 Todos os Clientes</nb-option>
+          <nb-option *ngFor="let c of listaClientes" [value]="c.id">
+            {{ c.firstName }}
+          </nb-option>
+        </nb-select>
+      </div>
+
+      <!-- Visão Temporal -->
+      <div class="filter-control">
+        <label class="label">Visão Temporal</label>
+        <nb-select
+          [(ngModel)]="viewMode"
+          (selectedChange)="onViewModeChange()"
+          fullWidth
+          placeholder="Selecione a Visão Temporal">
+          <nb-option value="MONTHLY">📅 Visão Mensal</nb-option>
+          <nb-option value="YEARLY">📊 Visão Anual</nb-option>
+          <nb-option value="RANGE">🗓️ Intervalo Personalizado</nb-option>
+        </nb-select>
+      </div>
+
+      <!-- Mês (Exibido apenas em MONTHLY) -->
+      <div class="filter-control filter-sm" *ngIf="viewMode === 'MONTHLY'">
+        <label class="label">Mês</label>
+        <nb-select [(ngModel)]="selectedMonth" (selectedChange)="recarregarDadosDashboard()" fullWidth placeholder="Mês">
+          <nb-option *ngFor="let m of meses; let i = index" [value]="i">{{ m }}</nb-option>
+        </nb-select>
+      </div>
+
+      <!-- Ano (Exibido em MONTHLY ou YEARLY) -->
+      <div class="filter-control filter-sm" *ngIf="viewMode === 'MONTHLY' || viewMode === 'YEARLY'">
+        <label class="label">Ano</label>
+        <nb-select [(ngModel)]="selectedYear" (selectedChange)="recarregarDadosDashboard()" fullWidth placeholder="Ano">
+          <nb-option *ngFor="let y of anos" [value]="y">{{ y }}</nb-option>
+        </nb-select>
+      </div>
+
+      <!-- Data Início / Fim (Exibido apenas em RANGE) -->
+      <div class="filter-control" *ngIf="viewMode === 'RANGE'">
+        <label class="label">Data Início</label>
+        <input nbInput type="date" [(ngModel)]="startDate" (change)="recarregarDadosDashboard()" class="full-width-input" />
+      </div>
+
+      <div class="filter-control" *ngIf="viewMode === 'RANGE'">
+        <label class="label">Data Fim</label>
+        <input nbInput type="date" [(ngModel)]="endDate" (change)="recarregarDadosDashboard()" class="full-width-input" />
+      </div>
+
+      <!-- Botão Emitir Certificado -->
+      <div class="filter-control btn-certificate-wrapper" *ngIf="isFiltrosValidosForCertificado">
+        <label class="label">&nbsp;</label>
+        <div class="certificate-input-box">
+          <button 
+            nbButton 
+            status="primary" 
+            class="btn-emitir-certificado"
+            (click)="emitirCertificado()">
+            <nb-icon icon="award-outline" pack="eva"></nb-icon>
+            EMITIR CERTIFICADO
+          </button>
+        </div>
+      </div>
+
+    </div>
+
+<!-- SEÇÃO DE INPUTS MENSAIS DE ENERGY CONTENT (Aparece apenas na Visão Anual) -->
+    <div *ngIf="viewMode === 'YEARLY'" class="yearly-energy-section mt-4 pt-3">
+      <div class="yearly-section-header mb-3">
+        <label class="label font-weight-bold text-primary mb-0">
+          <nb-icon icon="flash-outline" pack="eva"></nb-icon>
+          Energy Content Mensal (MJ/Sm³)
+        </label>
+      </div>
+
+      <div class="monthly-energy-grid">
+        <div class="filter-control filter-sm" *ngFor="let m of meses; let i = index">
+          <label class="label">{{ m }}</label>
+          <input 
+            nbInput 
+            type="number" 
+            step="0.01" 
+            [(ngModel)]="monthlyEnergyContent[i]" 
+            (ngModelChange)="onEnergyContentChange()" 
+            placeholder="Ex: 38.0" 
+            class="full-width-input input-sm" />
+        </div>
+      </div>
+    </div>
+
+  </nb-card-body>
+</nb-card>
+
+  <!-- 3. DISTRIBUIÇÃO RELATIVA E RANKING (EXIBIDO SE "TODOS OS CLIENTES" FOR SELECIONADO) -->
+  <div class="charts-row-split mb-4" *ngIf="isAllClientsSelected">
+    
+    <!-- Distribuição % (Donut) -->
+    <nb-card [nbSpinner]="spinnerVisible" nbSpinnerStatus="primary">
+      <nb-card-header class="card-header-flex">
+        <div class="header-title">
+          <nb-icon icon="pie-chart" pack="eva" status="success"></nb-icon>
+          <span>Distribuição Relativa por Cliente (%)</span>
+        </div>
+      </nb-card-header>
+      <nb-card-body class="chart-container-donut">
+        <div class="empty-state" *ngIf="!spinnerVisible && topConsumersData.length === 0">
+          <nb-icon icon="pie-chart-outline" pack="eva"></nb-icon>
+          <p>Sem dados para o período selecionado.</p>
+        </div>
+
+        <ng-container *ngIf="topConsumersData.length > 0">
+          <div class="donut-wrapper chart-box">
+            <ngx-charts-pie-chart
+              [scheme]="colorSchemeDonut"
+              [results]="topConsumersData"
+              [doughnut]="true"
+              [arcWidth]="0.30"
+              [legend]="false"
+              [labels]="false"
+              [animations]="true">
+            </ngx-charts-pie-chart>
+          </div>
+
+          <div class="client-progress-list">
+            <div *ngFor="let item of topConsumersData; let i = index" class="progress-item">
+              <div class="progress-info">
+                <span class="client-name">{{ item.name }}</span>
+                <span class="client-percent">{{ (item.percent || 0) | number:'1.1-1' }}%</span>
+              </div>
+              <div class="progress-bar-bg">
+                <div class="progress-bar-fill" [style.width.%]="item.percent || 0" [style.background-color]="colorSchemeDonut.domain[i]"></div>
+              </div>
+            </div>
+          </div>
+        </ng-container>
+      </nb-card-body>
+    </nb-card>
+
+<!-- Volume Absoluto por Cliente (Barra Horizontal) -->
+<nb-card [nbSpinner]="spinnerVisible" nbSpinnerStatus="primary">
+  <nb-card-header class="card-header-flex">
+    <div class="header-title">
+      <nb-icon icon="bar-chart" pack="eva" status="warning"></nb-icon>
+      <span>Consumo Real por Cliente (m³)</span>
+    </div>
+  </nb-card-header>
+  <nb-card-body class="chart-container-bar">
+    <div class="empty-state" *ngIf="!spinnerVisible && topConsumersData.length === 0">
+      <nb-icon icon="bar-chart-outline" pack="eva"></nb-icon>
+      <p>Sem dados para o período selecionado.</p>
+    </div>
+
+    <div class="chart-box-bar" *ngIf="topConsumersData.length > 0">
+      <ngx-charts-bar-horizontal
+        [scheme]="colorScheme"
+        [results]="topConsumersData"
+        [xAxis]="true"
+        [yAxis]="true"
+        [showXAxisLabel]="true"
+        xAxisLabel="Volume Consumido (m³)"
+        [showDataLabel]="true"
+        [dataLabelFormatting]="formatarDataLabel"
+        [barPadding]="12"
+        [roundEdges]="true"
+        [animations]="true">
+      </ngx-charts-bar-horizontal>
+    </div>
+  </nb-card-body>
+</nb-card>
+
+  </div>
+
+  <!-- 4. EVOLUÇÃO TEMPORAL (LINHA DO TEMPO) -->
+  <div class="charts-row-split mb-4">
+
+    <!-- Evolução em m³ -->
+    <nb-card class="main-chart-card" [nbSpinner]="spinnerVisible" nbSpinnerStatus="primary">
+      <nb-card-header class="card-header-flex">
+        <div class="header-title">
+          <nb-icon icon="trending-up-outline" pack="eva" status="primary"></nb-icon>
+          <span>Evolução do Consumo (m³) {{ !isAllClientsSelected ? '- ' + nomeClienteSelecionado : '' }}</span>
+        </div>
+      </nb-card-header>
+      <nb-card-body class="chart-container-full">
+        <div class="empty-state" *ngIf="!spinnerVisible && areaChartDataM3[0]?.series?.length === 0">
+          <nb-icon icon="inbox-outline" pack="eva"></nb-icon>
+          <p>Sem dados de volume para o período.</p>
+        </div>
+
+        <div class="chart-box" *ngIf="areaChartDataM3[0]?.series?.length > 0">
+          <ngx-charts-line-chart
+            [scheme]="colorScheme"
+            [results]="areaChartDataM3"
+            [xAxis]="true"
+            [yAxis]="true"
+            [showXAxisLabel]="true"
+            [showYAxisLabel]="true"
+            xAxisLabel="Data / Período"
+            yAxisLabel="Volume Real (m³)"
+            [autoScale]="true"
+            [timeline]="true"
+            [animations]="true">
+          </ngx-charts-line-chart>
+        </div>
+      </nb-card-body>
+    </nb-card>
+
+    <!-- Evolução da Energia em Gigajoules (GJ) -->
+    <nb-card class="main-chart-card" [nbSpinner]="spinnerVisible" nbSpinnerStatus="primary">
+      <nb-card-header class="card-header-flex">
+        <div class="header-title">
+          <nb-icon icon="flash-outline" pack="eva" status="warning"></nb-icon>
+          <span>Evolução da Energia (GJ) {{ !isAllClientsSelected ? '- ' + nomeClienteSelecionado : '' }}</span>
+        </div>
+      </nb-card-header>
+      <nb-card-body class="chart-container-full">
+        <div class="empty-state" *ngIf="!spinnerVisible && areaChartDataGJ[0]?.series?.length === 0">
+          <nb-icon icon="inbox-outline" pack="eva"></nb-icon>
+          <p>Sem dados de energia para o período.</p>
+        </div>
+
+        <div class="chart-box" *ngIf="areaChartDataGJ[0]?.series?.length > 0">
+          <ngx-charts-line-chart
+            [scheme]="colorSchemeGJ"
+            [results]="areaChartDataGJ"
+            [xAxis]="true"
+            [yAxis]="true"
+            [showXAxisLabel]="true"
+            [showYAxisLabel]="true"
+            xAxisLabel="Data / Período"
+            yAxisLabel="Energia Real (GJ)"
+            [autoScale]="true"
+            [timeline]="true"
+            [animations]="true">
+          </ngx-charts-line-chart>
+        </div>
+      </nb-card-body>
+    </nb-card>
+
+  </div>
+
+</div>

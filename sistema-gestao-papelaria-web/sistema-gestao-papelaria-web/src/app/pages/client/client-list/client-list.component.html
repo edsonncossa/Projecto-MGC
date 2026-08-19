@@ -1,0 +1,109 @@
+<nb-card>
+  <nb-card-header class="d-flex justify-content-between align-items-center">
+    <div class="d-flex align-items-center gap-2">
+      <nb-icon icon="people-outline" pack="eva" status="primary"></nb-icon>
+      <span class="h6 mb-0">Gestão de Clientes</span>
+    </div>
+
+    <!-- Ações e Pesquisa -->
+    <div class="d-flex align-items-center gap-3">
+      <div class="search-container">
+        <input 
+          nbInput 
+          type="text" 
+          placeholder="Pesquisar cliente..." 
+          (keyup)="applyFilter($event)"
+          fieldSize="medium"
+          fullWidth>
+      </div>
+
+       <!--   <button nbButton status="danger" (click)="abrirDialog()" class="d-flex align-items-center gap-2">
+        <nb-icon icon="person-add-outline" pack="eva"></nb-icon>
+        <span>Adicionar</span>
+      </button> -->
+    </div>
+  </nb-card-header>
+
+  <nb-card-body class="p-0">
+    <div class="table-responsive">
+      <mat-table [dataSource]="dataSource" matSort class="w-100">
+        
+        <!-- Nome / Nome da Empresa -->
+        <ng-container matColumnDef="firstName">
+          <mat-header-cell *matHeaderCellDef mat-sort-header>Nome</mat-header-cell>
+          <mat-cell *matCellDef="let client">
+            <strong>{{ client.firstName }}</strong>
+          </mat-cell>
+        </ng-container>
+
+        <!-- Email -->
+        <ng-container matColumnDef="email">
+          <mat-header-cell *matHeaderCellDef mat-sort-header>Email</mat-header-cell>
+          <mat-cell *matCellDef="let client">{{ client.email }}</mat-cell>
+        </ng-container>
+
+        <!-- Telefone -->
+        <ng-container matColumnDef="phoneNumber">
+          <mat-header-cell *matHeaderCellDef mat-sort-header>Telefone</mat-header-cell>
+          <mat-cell *matCellDef="let client">{{ client.phoneNumber }}</mat-cell>
+        </ng-container>
+
+        <!-- Endereço -->
+        <ng-container matColumnDef="address">
+          <mat-header-cell *matHeaderCellDef mat-sort-header>Endereço</mat-header-cell>
+          <mat-cell *matCellDef="let client">{{ client.address }}</mat-cell>
+        </ng-container>
+
+        <!-- Tipo -->
+        <ng-container matColumnDef="type">
+          <mat-header-cell *matHeaderCellDef mat-sort-header>Tipo</mat-header-cell>
+          <mat-cell *matCellDef="let client">
+            <span class="type-badge">{{ getClientTypeLabel(client.type) }}</span>
+          </mat-cell>
+        </ng-container>
+
+        <!-- Corretor -->
+        <ng-container matColumnDef="corrector">
+          <mat-header-cell *matHeaderCellDef mat-sort-header>Corretor</mat-header-cell>
+          <mat-cell *matCellDef="let client">
+            {{ client.corrector?.name || '-' }}
+          </mat-cell>
+        </ng-container>
+
+        <!-- Ações -->
+        <ng-container matColumnDef="action">
+          <mat-header-cell *matHeaderCellDef class="text-center">Ação</mat-header-cell>
+          <mat-cell *matCellDef="let client" class="text-center">
+            <button nbButton ghost status="primary" size="small" (click)="editarCliente(client)" title="Editar">
+              <nb-icon icon="edit-2-outline" pack="eva"></nb-icon>
+            </button>
+            <button nbButton ghost status="danger" size="small" (click)="desativarCliente(client)" title="Desativar">
+              <nb-icon icon="trash-2-outline" pack="eva"></nb-icon>
+            </button>
+          </mat-cell>
+        </ng-container>
+
+        <!-- Header / Rows -->
+        <mat-header-row *matHeaderRowDef="displayedColumns"></mat-header-row>
+        <mat-row *matRowDef="let client; columns: displayedColumns"></mat-row>
+
+        <!-- Sem Dados -->
+        <tr class="mat-row" *matNoDataRow>
+          <td class="mat-cell text-center p-4" colspan="7">
+            Não foram encontrados clientes para o filtro "{{ filterValue }}".
+          </td>
+        </tr>
+      </mat-table>
+    </div>
+  </nb-card-body>
+
+  <nb-card-footer class="d-flex justify-content-end p-2">
+    <mat-paginator 
+      [length]="totalElements" 
+      [pageSize]="pageSize" 
+      [pageIndex]="pageIndex" 
+      [pageSizeOptions]="[5, 10, 20]"
+      showFirstLastButtons>
+    </mat-paginator>
+  </nb-card-footer>
+</nb-card>

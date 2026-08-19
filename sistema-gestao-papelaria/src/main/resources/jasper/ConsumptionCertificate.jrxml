@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Created with Jaspersoft Studio version 6.20.6.final using JasperReports Library version 6.20.6-5c96b6aa8a39ac1dc6b6bea4b81168e16dd39231  -->
+<jasperReport xmlns="http://jasperreports.sourceforge.net/jasperreports" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://jasperreports.sourceforge.net/jasperreports http://jasperreports.sourceforge.net/xsd/jasperreport.xsd" name="ConsumptionCertificate" pageWidth="595" pageHeight="842" columnWidth="555" leftMargin="20" rightMargin="20" topMargin="20" bottomMargin="20" uuid="dad91c9e-a4da-44c6-8189-d0337ac52464">
+	<subDataset name="Dataset1" uuid="7b7511cb-269a-4a7a-9c3f-1102a2b889e8">
+		<property name="com.jaspersoft.studio.data.defaultdataadapter" value="One Empty Record"/>
+		<queryString>
+			<![CDATA[]]>
+		</queryString>
+	</subDataset>
+	<parameter name="CUSTOMER_NAME" class="java.lang.String"/>
+	<parameter name="MONTH_YEAR" class="java.lang.String"/>
+	<parameter name="TELEPHONE" class="java.lang.String"/>
+	<parameter name="POSTAL_ADDRESS" class="java.lang.String"/>
+	<parameter name="ACTUAL_QTY_YTD" class="java.lang.String"/>
+	<queryString>
+		<![CDATA[]]>
+	</queryString>
+	<field name="METER_NAME" class="java.lang.String"/>
+	<field name="PREVIOUS_READING" class="java.lang.String"/>
+	<field name="THIS_MONTH_READING" class="java.lang.String"/>
+	<field name="VOLUME_STD_M3" class="java.lang.String"/>
+	<background>
+		<band splitType="Stretch"/>
+	</background>
+	<title>
+		<band height="642" splitType="Stretch">
+			<frame>
+				<reportElement x="-7" y="114" width="567" height="206" uuid="afc5d90e-63c4-4e28-b95f-e1ae1f9395d0"/>
+				<box>
+					<pen lineWidth="1.0" lineStyle="Solid" lineColor="#000000"/>
+					<topPen lineWidth="1.0" lineStyle="Double" lineColor="#000000"/>
+					<leftPen lineWidth="1.0" lineStyle="Double" lineColor="#000000"/>
+					<bottomPen lineWidth="1.0" lineStyle="Double" lineColor="#000000"/>
+					<rightPen lineWidth="1.0" lineStyle="Double" lineColor="#000000"/>
+				</box>
+			</frame>
+			<frame>
+				<reportElement x="-7" y="-10" width="567" height="120" uuid="3d542fcb-22eb-46af-be53-5d2c8c90bcda"/>
+				<box>
+					<pen lineWidth="1.0" lineStyle="Solid" lineColor="#000000"/>
+					<topPen lineWidth="1.0" lineStyle="Double" lineColor="#000000"/>
+					<leftPen lineWidth="1.0" lineStyle="Double" lineColor="#000000"/>
+					<bottomPen lineWidth="1.0" lineStyle="Double" lineColor="#000000"/>
+					<rightPen lineWidth="1.0" lineStyle="Double" lineColor="#000000"/>
+				</box>
+				<staticText>
+					<reportElement x="181" y="41" width="238" height="19" uuid="5a631d1e-974b-41c0-8759-afdd66c902b1"/>
+					<textElement textAlignment="Center">
+						<font fontName="DejaVu Serif" size="13" isBold="true"/>
+					</textElement>
+					<text><![CDATA[Gas Supply Certificate]]></text>
+				</staticText>
+				<staticText>
+					<reportElement x="181" y="134" width="238" height="19" uuid="3953d75b-511e-4e15-bcc1-ba644ca38c38"/>
+					<textElement textAlignment="Center">
+						<font fontName="DejaVu Serif" size="13" isBold="true"/>
+					</textElement>
+					<text><![CDATA[Customer Detail]]></text>
+				</staticText>
+			</frame>
+			<image>
+				<reportElement x="23" y="-18" width="117" height="105" uuid="0e5dd3f5-345f-4320-b454-5991e2f692c6"/>
+				<imageExpression><![CDATA["/home/edson-cossa/Documentos/Projecto-MGC-GAS-Management/sistema-gestao-papelaria-web/sistema-gestao-papelaria-web/src/assets/MGC-Logo.png"]]></imageExpression>
+			</image>
+			<image>
+				<reportElement x="446" y="-1" width="96" height="72" uuid="ea20bae7-7a1d-439a-9d35-da18fa8eb347"/>
+				<imageExpression><![CDATA["/home/edson-cossa/Documentos/Projecto-MGC-GAS-Management/sistema-gestao-papelaria-web/sistema-gestao-papelaria-web/src/assets/Made in Mozambique.png"]]></imageExpression>
+			</image>
+			<staticText>
+				<reportElement x="-24" y="71" width="238" height="19" uuid="2698f82a-d9cf-4167-ab54-d6615c4a2fcf"/>
+				<textElement textAlignment="Center">
+					<font fontName="DejaVu Serif" size="13" isBold="true"/>
+				</textElement>
+				<text><![CDATA[Matola Gas Company, SA]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="79" y="96" width="435" height="18" uuid="2dc9a29f-a52d-45e1-bde7-66cd0058293b"/>
+				<text><![CDATA[This certificate is issued to the financial department for the processing of Customer Invoices]]></text>
+			</staticText>
+		</band>
+	</title>
+</jasperReport>

@@ -1,0 +1,87 @@
+<div class="toolbar">
+  <mat-form-field appearance="outline" class="filter-field">
+    <mat-label>Pesquisar</mat-label>
+    <input
+      matInput
+      (keyup)="applyFilter($event)"
+      placeholder="Ex: Nome"
+    />
+    <button mat-icon-button matSuffix>
+      <i class="fa-solid fa-magnifying-glass"></i>
+    </button>
+  </mat-form-field>
+
+  <button mat-raised-button class="btn-add" (click)="abrirDialog()">
+    <i class="fa-solid fa-plus"></i>
+    Adicionar
+  </button>
+</div>
+
+<div class="mat-elevation-z4">
+  <mat-table mat-table [dataSource]="dataSource" matSort>
+    <!-- name -->
+    <ng-container matColumnDef="product">
+      <mat-header-cell *matHeaderCellDef mat-sort-header>Nome</mat-header-cell>
+      <mat-cell *matCellDef="let stock">{{ stock.product.name }}</mat-cell>
+    </ng-container>
+
+    <!-- quantity -->
+    <ng-container matColumnDef="quantity">
+      <mat-header-cell *matHeaderCellDef mat-sort-header
+        >Estoque Atual</mat-header-cell
+      >
+      <mat-cell *matCellDef="let stock">
+        <span [class]="(stock.quantity | stockStatus: stock.quantity).class">
+          {{ (stock.quantity | stockStatus: stock.quantity).value }}
+        </span>
+      </mat-cell>
+    </ng-container>
+
+    <ng-container matColumnDef="action">
+      <mat-header-cell *matHeaderCellDef mat-sort-header>Ação</mat-header-cell>
+      <mat-cell *matCellDef="let stock">
+        <!-- Ícone de editar -->
+        <button
+          mat-icon-button
+          color="primary"
+          (click)="abrirContadoresDialog(stock)"
+        >
+          <i class="fa-solid fa-arrow-right-arrow-left"></i>
+        </button>
+        <!-- Ícone de editar -->
+        <button mat-icon-button color="primary" (click)="editarStock(stock)">
+          <i class="fa-solid fa-user-pen"></i>
+        </button>
+
+        <!-- Ícone de deletar -->
+        <button
+          mat-icon-button
+          color="warn"
+          (click)="desativarStock(stock)"
+          matTooltip="Desativar stock"
+        >
+          <i class="fa-solid fa-trash-can"></i>
+        </button>
+      </mat-cell>
+    </ng-container>
+
+    <!-- Header / Rows -->
+    <mat-header-row *matHeaderRowDef="displayedColumns"></mat-header-row>
+    <mat-row *matRowDef="let product; columns: displayedColumns"></mat-row>
+
+    <!-- Sem dados -->
+    <!-- Sem dados -->
+    <tr class="mat-row" *matNoDataRow>
+      <td class="mat-cell" colspan="4">Não há movimentações para exibir.</td>
+    </tr>
+  </mat-table>
+
+  <mat-paginator
+    [length]="totalElements"
+    [pageSize]="pageSize"
+    [pageIndex]="pageIndex"
+    [pageSizeOptions]="[5, 10, 20]"
+    showFirstLastButtons
+  >
+  </mat-paginator>
+</div>

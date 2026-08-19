@@ -1,0 +1,74 @@
+<h2 mat-dialog-title class="dialog-title">
+  <i
+    class="fa-solid"
+    [class.fa-plus]="!isEditMode"
+    [class.fa-user-pen]="isEditMode"
+  >
+  </i>
+  {{ isEditMode ? "Editar Estoque" : "Novo Estoque" }}
+</h2>
+
+<mat-dialog-content [formGroup]="form">
+  <div class="row">
+    <mat-form-field appearance="fill" class="full">
+      <mat-label>Produto</mat-label>
+
+      <mat-select formControlName="productId" >
+        <mat-option *ngFor="let prod of products" [value]="prod.id">
+          {{ prod.name }}
+        </mat-option> </mat-select
+      >
+
+      <mat-error *ngIf="form.get('productId')?.hasError('required')">
+        Artigo é obrigatório
+      </mat-error>
+    </mat-form-field>
+
+    <mat-form-field appearance="fill">
+      <mat-label>Quantidade a entrar</mat-label>
+      <input
+        matInput
+        type="number"
+        formControlName="quantity"
+        placeholder="Ex: 10"
+      />
+      <mat-error *ngIf="form.get('quantity')?.hasError('required')">
+        Entrada é obrigatória
+      </mat-error>
+      <mat-error *ngIf="form.get('quantity')?.hasError('min')">
+        A quantidade deve ser maior que 0
+      </mat-error>
+    </mat-form-field>
+  </div>
+</mat-dialog-content>
+
+<mat-dialog-actions align="end">
+  <button mat-button (click)="cancelar()" type="button" class="btn-cancel">
+    <i class="fa-regular fa-circle-xmark"></i>
+    Cancelar
+  </button>
+  <!-- Botão Salvar com Loading -->
+  <button
+    mat-raised-button
+    (click)="salvar()"
+    [disabled]="form.invalid || isLoading"
+    type="submit"
+    class="btn-save"
+    (selectionChange)="onProductChange($event)"
+  >
+    <!--Spinner de carregamento -->
+    <mat-progress-spinner
+      *ngIf="isLoading"
+      diameter="18"
+      mode="indeterminate"
+      color="white"
+    >
+    </mat-progress-spinner>
+
+    <!-- Ícone quando não está carregando -->
+    <i *ngIf="!isLoading" class="fa-regular fa-floppy-disk"></i>
+
+    <!-- Texto dinâmico -->
+    {{ isLoading ? "Salvando..." : "Salvar" }}
+  </button>
+</mat-dialog-actions>

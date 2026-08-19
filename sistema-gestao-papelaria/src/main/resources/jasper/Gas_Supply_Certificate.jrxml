@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Created with Jaspersoft Studio version 6.20.6.final using JasperReports Library version 6.20.6-5c96b6aa8a39ac1dc6b6bea4b81168e16dd39231  -->
+<jasperReport xmlns="http://jasperreports.sourceforge.net/jasperreports" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://jasperreports.sourceforge.net/jasperreports http://jasperreports.sourceforge.net/xsd/jasperreport.xsd" name="Gas_Supply_Certificate" pageWidth="595" pageHeight="842" columnWidth="555" leftMargin="20" rightMargin="20" topMargin="20" bottomMargin="20" uuid="462809f4-e01b-481d-8f23-31d9b6ae3759">
+	<parameter name="Logo_MGC" class="java.lang.String"/>
+	<parameter name="Made_in_Moz" class="java.lang.String"/>
+	<parameter name="MONTH_VAL" class="java.lang.String">
+		<defaultValueExpression><![CDATA[$P{MONTH_VAL}]]></defaultValueExpression>
+	</parameter>
+	<queryString>
+		<![CDATA[]]>
+	</queryString>
+	<field name="Field_1" class="java.lang.String"/>
+	<background>
+		<band splitType="Stretch"/>
+	</background>
+	<title>
+		<band height="144" splitType="Stretch">
+			<image>
+				<reportElement x="9" y="-15" width="110" height="110" uuid="7a336508-b5bf-4bf4-a0ab-4c69a1960099"/>
+				<imageExpression><![CDATA[$P{Logo_MGC}]]></imageExpression>
+			</image>
+			<image>
+				<reportElement x="470" y="-5" width="82" height="80" uuid="9bfe783b-a3a5-449c-a35a-0d0fb09d2373"/>
+				<imageExpression><![CDATA[$P{Made_in_Moz}]]></imageExpression>
+			</image>
+			<staticText>
+				<reportElement x="180" y="20" width="211" height="41" uuid="d002a0a7-65f0-45ab-b8df-3a9c4e6260fa"/>
+				<textElement textAlignment="Center">
+					<font size="16" isBold="true"/>
+				</textElement>
+				<text><![CDATA[Gas Supply Certificate]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="-13" y="100" width="193" height="41" forecolor="#4149D9" uuid="4d661aad-b499-4f9d-b86c-ce5e3b3515c3"/>
+				<textElement textAlignment="Center">
+					<font size="14" isBold="true"/>
+				</textElement>
+				<text><![CDATA[Matola Gas Company, SA]]></text>
+			</staticText>
+		</band>
+	</title>
+	<detail>
+		<band height="127" splitType="Stretch">
+			<staticText>
+				<reportElement x="110" y="-16" width="360" height="13" uuid="3e9d0325-5a60-4463-8c6d-99dff704a8a7"/>
+				<textElement textAlignment="Center">
+					<font size="8" isBold="false" isItalic="true"/>
+				</textElement>
+				<text><![CDATA[This certificate is issued to the financial department for the processing of Customer Invoices]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="220" y="2" width="124" height="30" uuid="baa14c73-ea20-477d-9faa-8411d042b43f"/>
+				<textElement textAlignment="Center">
+					<font size="14" isBold="true"/>
+				</textElement>
+				<text><![CDATA[Customer Detail]]></text>
+			</staticText>
+		</band>
+	</detail>
+</jasperReport>

@@ -1,0 +1,89 @@
+.logo {
+  display: flex;
+  align-items: center;
+  /* Alinha o ícone/imagem com o texto verticalmente */
+  gap: 100px;
+  /* Espaçamento entre logo e título */
+  cursor: pointer;
+
+  img {
+    height: 80px;
+    /* Defina uma altura fixa, ex: 40px para um toolbar de 64px */
+    width: auto;
+    /* Mantém a proporção da imagem */
+    object-fit: contain;
+
+  }
+}
+
+.title {
+  font-size: 1.25rem;
+  // font-weight: 600;
+  /* Peso mais moderno */
+  letter-spacing: -0.5px;
+}
+
+.mat-menu-item {
+  .mat-icon {
+    margin-top: 5px;
+    font-size: 18px;
+  }
+}
+
+.toolbar-menu {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 64px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 24px;
+
+  /* Azul profundo moderno (condizente com o logo MGC) */
+  background: linear-gradient(135deg, #ffffff, #9aaeca, #1f4e9a);
+  backdrop-filter: blur(10px);
+  /* Efeito vidro */
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  z-index: 1000;
+  color: #ffffff;
+}
+
+.content-center {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  /* Espaçamento moderno entre ícones */
+  margin-left: auto;
+}
+
+.user-profile {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  padding: 4px 12px;
+  border-radius: 20px;
+  transition: background 0.3s;
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.1);
+  }
+}
+
+.avatar {
+  width: 35px;
+  height: 35px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid rgba(255, 255, 255, 0.2);
+}
+
+.space-right-icon {
+  margin-right: 10px;
+}
+
+::ng-deep .mat-mdc-menu-panel {
+  z-index: 9999 !important;
+}

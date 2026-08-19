@@ -1,0 +1,43 @@
+<div class="login-container">
+  <div class="login-card">
+    <div class="header">
+      <img src="assets/MGC-Logo.png" alt="Logo" class="logo" />
+      <h2>Gestão de Consumos</h2>
+      <p>Faça login para continuar</p>
+    </div>
+
+    <form [formGroup]="form" (ngSubmit)="login()">
+      <div class="input-group">
+        <label>Username</label>
+        <input type="text" formControlName="username" placeholder="Digite seu username" autocomplete="username" />
+
+        <small *ngIf="form.get('username')?.invalid && submitted">
+          Insira o username
+        </small>
+      </div>
+
+      <div class="input-group">
+        <label>Password</label>
+        <div class="password-wrapper">
+          <input [type]="hidePassword ? 'password' : 'text'" formControlName="password" placeholder="Digite sua senha"
+            autocomplete="current-password" />
+
+          <span (click)="hidePassword = !hidePassword">
+            {{ hidePassword ? "👁️" : "🙈" }}
+          </span>
+        </div>
+
+        <small *ngIf="form.get('password')?.invalid && submitted">
+          Insira a password
+        </small>
+      </div>
+
+      <button type="submit">Entrar</button>
+
+      <div *ngIf="error" class="error-alert">
+        <span class="error-icon">⚠️</span>
+        <span>{{ error }}</span>
+      </div>
+    </form>
+  </div>
+</div>

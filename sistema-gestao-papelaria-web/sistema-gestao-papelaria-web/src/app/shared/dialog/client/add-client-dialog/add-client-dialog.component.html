@@ -1,0 +1,114 @@
+<!--Título muda baseado no modo -->
+<h2 mat-dialog-title class="dialog-title">
+  <i
+    class="fa-solid"
+    [class.fa-user-plus]="!isEditMode"
+    [class.fa-user-pen]="isEditMode"
+  >
+  </i>
+  {{ isEditMode ? "Editar Cliente" : "Novo Cliente" }}
+</h2>
+
+<mat-dialog-content [formGroup]="form">
+  <div class="row">
+    <mat-form-field appearance="fill" class="full">
+      <mat-label>Tipo</mat-label>
+      <mat-select formControlName="type">
+        <mat-option *ngFor="let t of tipos" [value]="t.value">
+          {{ t.viewValue }}
+        </mat-option>
+      </mat-select>
+      <mat-error *ngIf="form.get('type')?.hasError('required')">
+        Tipo é obrigatório
+      </mat-error>
+    </mat-form-field>
+
+    <mat-form-field appearance="fill">
+      <mat-label>Nome</mat-label>
+      <input matInput formControlName="firstName" />
+      <mat-error *ngIf="form.get('firstName')?.hasError('required')">
+        Nome é obrigatório
+      </mat-error>
+    </mat-form-field>
+  </div>
+
+  <div class="row">
+  
+
+    <mat-form-field appearance="fill">
+      <mat-label>Email</mat-label>
+      <input matInput formControlName="email" type="email" />
+
+      <mat-error *ngIf="form.get('email')?.hasError('required')">
+        Email é obrigatório
+      </mat-error>
+      <mat-error *ngIf="form.get('email')?.hasError('email')">
+        Email inválido
+      </mat-error>
+    </mat-form-field>
+
+
+  </div>
+
+  <div class="row">
+    <mat-form-field appearance="fill" class="full">
+      <mat-label>Endereço</mat-label>
+      <input
+        matInput
+        formControlName="address"
+        placeholder="Ex: Av. Julius Nyerere, nº 123"
+      />
+      <mat-error *ngIf="form.get('address')?.hasError('required')">
+        Endereço é obrigatório
+      </mat-error>
+    </mat-form-field>
+
+    <mat-form-field appearance="fill">
+      <mat-label>Telefone</mat-label>
+      <input
+        matInput
+        formControlName="phoneNumber"
+        appPhoneMask
+        placeholder="XX XXX XXXX"
+        maxlength="11"
+      />
+
+      <mat-error *ngIf="form.get('phoneNumber')?.hasError('required')">
+        Telefone é obrigatório
+      </mat-error>
+      <mat-error *ngIf="form.get('phoneNumber')?.hasError('invalidPhone')">
+        Telefone deve ter 9 dígitos
+      </mat-error>
+    </mat-form-field>
+  </div>
+</mat-dialog-content>
+
+<mat-dialog-actions align="end">
+  <button mat-button (click)="cancelar()" type="button" class="btn-cancel">
+    <i class="fa-regular fa-circle-xmark"></i>
+    Cancelar
+  </button>
+  <!-- Botão Salvar com Loading -->
+  <button
+    mat-raised-button
+    (click)="salvar()"
+    [disabled]="form.invalid || isLoading"
+    type="submit"
+    class="btn-save"
+  >
+    <!--Spinner de carregamento -->
+    <mat-progress-spinner
+      *ngIf="isLoading"
+      diameter="18"
+      mode="indeterminate"
+      color="white"
+    >
+    </mat-progress-spinner>
+
+    <!-- Ícone quando não está carregando -->
+    <i *ngIf="!isLoading" class="fa-regular fa-floppy-disk"></i>
+
+    <!-- Texto dinâmico -->
+    {{ isLoading ? "Salvando..." : "Salvar" }}
+  </button>
+</mat-dialog-actions>

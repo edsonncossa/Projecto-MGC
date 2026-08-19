@@ -1,0 +1,198 @@
+<div class="sale-container">
+  <div class="header">
+    <div class="sale-counter">
+      <h2>
+        <i class="fa-brands fa-shopify"></i>
+        {{ saleCouter }}
+      </h2>
+    </div>
+
+    <div class="sale-value">
+      <h2>{{ valueSale | currency: "MZN " : "symbol" : "1.2-2" }}</h2>
+    </div>
+  </div>
+
+  <div class="sales-details" [formGroup]="form">
+    <!-- Produto -->
+    <mat-form-field appearance="fill" class="full">
+      <mat-label>Produto</mat-label>
+      <input
+        type="text"
+        matInput
+        formControlName="productId"
+        [matAutocomplete]="autoProduct"
+        placeholder="Digite o nome do produto"
+        aria-label="Produto"
+      />
+
+      <mat-autocomplete
+        #autoProduct="matAutocomplete"
+        [displayWith]="displayProduct"
+      >
+        <mat-option *ngFor="let prod of filteredProducts" [value]="prod">
+          {{ prod.name }}
+        </mat-option>
+      </mat-autocomplete>
+    </mat-form-field>
+
+    <!-- Unidade -->
+    <mat-form-field appearance="fill" class="full">
+      <mat-label>Unidade de Medida</mat-label>
+      <mat-select formControlName="unitId">
+        <mat-option
+          *ngFor="let productUnitConversion of productUnitConversions"
+          [value]="productUnitConversion.unit?.id"
+        >
+          {{ productUnitConversion.unit?.name }} ({{
+            productUnitConversion.unit?.symbol
+          }}) - Fator: {{ productUnitConversion.conversionFactor }}
+        </mat-option>
+      </mat-select>
+    </mat-form-field>
+
+    <!-- Quantidade -->
+    <mat-form-field appearance="fill" class="full">
+      <mat-label>Quantidade</mat-label>
+      <input
+        id="quantity"
+        matInput
+        type="number"
+        formControlName="quantity"
+        aria-label="Quantidade"
+      />
+    </mat-form-field>
+
+    <!-- Cliente -->
+    <mat-form-field appearance="fill" class="full">
+      <mat-label>Cliente</mat-label>
+      <input
+        type="text"
+        matInput
+        formControlName="clientId"
+        [matAutocomplete]="autoClient"
+        placeholder="Digite o nome do cliente"
+        aria-label="Cliente"
+      />
+
+      <mat-autocomplete
+        #autoClient="matAutocomplete"
+        [displayWith]="displayClient"
+      >
+        <mat-option *ngFor="let client of filteredClients" [value]="client">
+          {{ client.firstName }}
+        </mat-option>
+      </mat-autocomplete>
+    </mat-form-field>
+  </div>
+  <div class="button-container">
+    <button mat-raised-button class="btn-add" (click)="addItem()">
+      <i class="fa-solid fa-cart-plus"></i>
+      Adicionar
+    </button>
+  </div>
+
+  <div class="mat-elevation-z4">
+    <mat-table [dataSource]="dataSource" matSort>
+      <ng-container matColumnDef="image">
+        <mat-header-cell *matHeaderCellDef mat-sort-header
+          >Imagem</mat-header-cell
+        >
+        <mat-cell mat-cell *matCellDef="let element">
+          <img
+            [src]="getImage(element.product?.image)"
+            alt="Produto"
+            width="50"
+            height="50"
+            class="imagem"
+          />
+        </mat-cell>
+      </ng-container>
+      <ng-container matColumnDef="productName">
+        <mat-header-cell *matHeaderCellDef mat-sort-header
+          >Produto</mat-header-cell
+        >
+        <mat-cell *matCellDef="let item">{{ item.product.name }}</mat-cell>
+      </ng-container>
+
+      <ng-container matColumnDef="unitaryValue">
+        <mat-header-cell *matHeaderCellDef mat-sort-header
+          >Valor Unitário</mat-header-cell
+        >
+        <mat-cell *matCellDef="let item">{{
+          item.product.unitPrice | currency: "MZN " : "symbol" : "1.2-2"
+        }}</mat-cell>
+      </ng-container>
+
+      <ng-container matColumnDef="unitName">
+        <mat-header-cell *matHeaderCellDef mat-sort-header
+          >Unidade de Medida</mat-header-cell
+        >
+        <mat-cell *matCellDef="let item"
+          >{{ item.productUnitConversion.unit?.name }} ({{
+            item.productUnitConversion.unit?.symbol
+          }}) factor:
+          {{ item.productUnitConversion.conversionFactor }}</mat-cell
+        >
+      </ng-container>
+
+      <ng-container matColumnDef="quantity">
+        <mat-header-cell *matHeaderCellDef mat-sort-header
+          >Quantidade</mat-header-cell
+        >
+        <mat-cell *matCellDef="let item">{{ item.quantity }}</mat-cell>
+      </ng-container>
+
+      <ng-container matColumnDef="totalValue">
+        <mat-header-cell *matHeaderCellDef mat-sort-header
+          >Valor Total</mat-header-cell
+        >
+        <mat-cell *matCellDef="let item">
+          {{
+            item.quantity * item.product.unitPrice
+              | currency: "MZN " : "symbol" : "1.2-2"
+          }}
+        </mat-cell>
+      </ng-container>
+
+      <ng-container matColumnDef="action">
+        <mat-header-cell *matHeaderCellDef mat-sort-header
+          >Ação</mat-header-cell
+        >
+        <mat-cell *matCellDef="let item">
+          <!-- Botão Editar -->
+          <button
+            mat-icon-button
+            color="primary"
+            matTooltip="Editar item"
+            aria-label="Editar item"
+            (click)="editItem(item)"
+          >
+            <i class="fa-solid fa-pen-to-square"></i>
+          </button>
+
+          <!-- Botão Remover -->
+          <button
+            mat-icon-button
+            color="warn"
+            matTooltip="Remover item"
+            aria-label="Remover item"
+            (click)="removeItem(item)"
+          >
+            <i class="fa-solid fa-trash"></i>
+          </button>
+        </mat-cell>
+      </ng-container>
+
+      <!-- Aqui estão as linhas obrigatórias -->
+      <mat-header-row *matHeaderRowDef="displayedColumns"></mat-header-row>
+      <mat-row *matRowDef="let row; columns: displayedColumns"></mat-row>
+    </mat-table>
+  </div>
+
+  <div class="button-container">
+    <button mat-raised-button class="btn-add" (click)="processSale()">
+      <i class="fa-solid fa-check"></i>
+      Processar Venda
+    </button>
+  </div>
+</div>

@@ -1,0 +1,95 @@
+<div class="toolbar">
+  <mat-form-field appearance="outline" class="filter-field">
+    <mat-label>Pesquisar</mat-label>
+    <input
+      matInput
+      (keyup)="applyFilter($event)"
+      placeholder="Ex: Produto, Unidade de medida... "
+    />
+    <button mat-icon-button matSuffix>
+      <i class="fa-solid fa-magnifying-glass"></i>
+    </button>
+  </mat-form-field>
+
+  <button mat-raised-button class="btn-add" (click)="abrirDialog()">
+    <i class="fa-solid fa-plus"></i>
+    Adicionar
+  </button>
+</div>
+
+<div class="mat-elevation-z4">
+  <mat-table mat-table [dataSource]="dataSource" matSort>
+    <!-- productName -->
+    <ng-container matColumnDef="productName">
+      <mat-header-cell *matHeaderCellDef mat-sort-header
+        >Nome do produto</mat-header-cell
+      >
+      <mat-cell *matCellDef="let productUnitConversion">{{
+        productUnitConversion.product.name
+      }}</mat-cell>
+    </ng-container>
+
+    <!-- unit -->
+    <ng-container matColumnDef="unitName">
+      <mat-header-cell *matHeaderCellDef mat-sort-header>
+        Unidade de medida - Símbolo
+      </mat-header-cell>
+
+      <mat-cell *matCellDef="let productUnitConversion">
+        {{ productUnitConversion.unit.name }} ({{ productUnitConversion.unit.symbol }})
+      </mat-cell>
+    </ng-container>
+
+    <!-- conversionFactor -->
+    <ng-container matColumnDef="conversionFactor">
+      <mat-header-cell *matHeaderCellDef mat-sort-header
+        >Fator de conversão</mat-header-cell
+      >
+      <mat-cell *matCellDef="let productUnitConversion">
+        {{ productUnitConversion.conversionFactor }}
+      </mat-cell>
+    </ng-container>
+
+    <ng-container matColumnDef="action">
+      <mat-header-cell *matHeaderCellDef mat-sort-header>Ação</mat-header-cell>
+      <mat-cell *matCellDef="let productUnitConversion">
+        <!-- Ícone de editar -->
+        <button
+          mat-icon-button
+          color="primary"
+          matTooltip="Editar categoria"
+          (click)="editarProdutoUnitConversion(productUnitConversion)"
+        >
+          <i class="fa-solid fa-user-pen"></i>
+        </button>
+
+        <!-- Ícone de deletar -->
+        <button mat-icon-button color="warn" matTooltip="Desativar cliente">
+          <i class="fa-solid fa-trash-can"></i>
+        </button>
+      </mat-cell>
+    </ng-container>
+
+    <!-- Header / Rows -->
+    <mat-header-row *matHeaderRowDef="displayedColumns"></mat-header-row>
+    <mat-row
+      *matRowDef="let productUnitConversion; columns: displayedColumns"
+    ></mat-row>
+
+    <!-- Sem dados -->
+    <tr class="mat-row" *matNoDataRow>
+      <td class="mat-cell" colspan="5">
+        Não há dados para o filtro "{{ filterValue }}"
+      </td>
+    </tr>
+  </mat-table>
+
+  <mat-paginator
+    [length]="totalElements"
+    [pageSize]="pageSize"
+    [pageIndex]="pageIndex"
+    [pageSizeOptions]="[5, 10, 20]"
+    showFirstLastButtons
+  >
+  </mat-paginator>
+</div>

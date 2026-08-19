@@ -1,0 +1,69 @@
+<h2 mat-dialog-title class="dialog-title">
+  <i
+    class="fa-solid"
+    [class.fa-plus]="!isEditMode"
+    [class.fa-user-pen]="isEditMode"
+  >
+  </i>
+  {{ isEditMode ? "Editar Unidade de Medida" : "Nova Unidade de Medida" }}
+</h2>
+
+<mat-dialog-content [formGroup]="form">
+  <div class="row">
+    <mat-form-field appearance="fill">
+      <mat-label>Nome</mat-label>
+      <input matInput formControlName="name" />
+      <mat-error *ngIf="form.get('name')?.hasError('required')">
+        Nome é obrigatório
+      </mat-error>
+    </mat-form-field>
+  </div>
+  <div class="row">
+    <mat-form-field appearance="fill">
+      <mat-label>Símbolo</mat-label>
+      <input matInput formControlName="symbol" />
+      <mat-error *ngIf="form.get('symbol')?.hasError('required')">
+        Símbolo é obrigatório
+      </mat-error>
+    </mat-form-field>
+  </div>
+  <div class="row">
+    <mat-form-field appearance="fill">
+      <mat-label>Descrição</mat-label>
+      <textarea matInput formControlName="description" rows="4"></textarea>
+      <mat-error *ngIf="form.get('description')?.hasError('required')">
+        Descrição é obrigatória
+      </mat-error>
+    </mat-form-field>
+  </div>
+</mat-dialog-content>
+
+<mat-dialog-actions align="end">
+    <button mat-button (click)="cancelar()" type="button" class="btn-cancel">
+      <i class="fa-regular fa-circle-xmark"></i>
+      Cancelar
+    </button>
+    <!-- Botão Salvar com Loading -->
+    <button
+      mat-raised-button
+      (click)="salvar()"
+      [disabled]="form.invalid || isLoading"
+      type="submit"
+      class="btn-save"
+    >
+      <!--Spinner de carregamento -->
+      <mat-progress-spinner
+        *ngIf="isLoading"
+        diameter="18"
+        mode="indeterminate"
+        color="white"
+      >
+      </mat-progress-spinner>
+
+      <!-- Ícone quando não está carregando -->
+      <i *ngIf="!isLoading" class="fa-regular fa-floppy-disk"></i>
+
+      <!-- Texto dinâmico -->
+      {{ isLoading ? "Salvando..." : "Salvar" }}
+    </button>
+  </mat-dialog-actions>

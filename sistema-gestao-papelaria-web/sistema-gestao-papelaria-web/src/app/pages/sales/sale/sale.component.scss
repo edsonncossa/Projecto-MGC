@@ -1,0 +1,106 @@
+.sale-container {
+  margin-top: 10px;
+  display: flex;
+  flex-direction: column; /* Coloca os filhos em coluna */
+  gap: 15px;              /* Espaço entre header e sales-details */
+  padding: 0 10px;
+
+  h2 {
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 20px;
+    color: #333;
+
+    i {
+      font-size: 24px;
+      line-height: 1;
+      color: #1976d2;
+    }
+  }
+}
+
+.sale-value {
+  height: 50px;
+  padding: 0 15px;
+  background-color: #e6e6e6;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  border-radius: 4px;
+  white-space: nowrap; /* Evita quebra do valor */
+
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+}
+
+.full {
+  width: 100%;
+}
+
+.sales-details {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 10px;
+  width: 100%;
+  margin-top: 20px;
+}
+
+/* Para forçar Produto, Unidade e Quantidade na mesma linha */
+.sales-details > mat-form-field:nth-child(1),
+.sales-details > mat-form-field:nth-child(2),
+.sales-details > mat-form-field:nth-child(3) {
+  min-width: 200px; /* garante que não fiquem muito pequenos */
+}
+
+.button-container {
+  margin-top: 15px;
+  display: flex;
+  justify-content: flex-start; /* ou center, ou flex-end */
+  width: 100%;
+}
+
+
+.btn-add {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px; // Espaço entre ícone e texto
+  height: 56px;
+  padding: 0 24px;
+  background-color: #d32f2f;
+  color: #ffffff;
+  font-size: 14px;
+  font-weight: 500;
+  text-transform: none;
+  letter-spacing: 0;
+  border-radius: 4px;
+  box-shadow: 0 2px 4px rgba(211, 47, 47, 0.2);
+  transition: all 0.2s ease;
+
+  &:hover {
+    background-color: #b71c1c;
+    box-shadow: 0 4px 8px rgba(211, 47, 47, 0.3);
+  }
+
+  &:active {
+    background-color: #b71c1c;
+    box-shadow: 0 1px 2px rgba(211, 47, 47, 0.2);
+  }
+
+  i {
+    font-size: 18px;
+    line-height: 1;
+  }
+}
+
+.imagem {
+  object-fit: cover;
+  border-radius: 4px;
+}

@@ -1,0 +1,80 @@
+<div class="toolbar">
+  <mat-form-field appearance="outline" class="filter-field">
+    <mat-label>Pesquisar</mat-label>
+    <input
+      matInput
+      (keyup)="applyFilter($event)"
+      placeholder="Ex: Nome, Sigla..."
+    />
+    <button mat-icon-button matSuffix>
+      <i class="fa-solid fa-magnifying-glass"></i>
+    </button>
+  </mat-form-field>
+
+  <button mat-raised-button class="btn-add" (click)="abrirDialog()">
+    <i class="fa-solid fa-plus"></i>
+    Adicionar
+  </button>
+</div>
+
+<div class="mat-elevation-z4">
+  <mat-table mat-table [dataSource]="dataSource" matSort>
+    <!-- name -->
+    <ng-container matColumnDef="name">
+      <mat-header-cell *matHeaderCellDef mat-sort-header>Nome</mat-header-cell>
+      <mat-cell *matCellDef="let unit">{{ unit.name }}</mat-cell>
+    </ng-container>
+
+    <!--symbol-->
+    <ng-container matColumnDef="symbol">
+      <mat-header-cell *matHeaderCellDef mat-sort-header>Sigla</mat-header-cell>
+      <mat-cell *matCellDef="let unit">{{ unit.symbol }}</mat-cell>
+    </ng-container>
+
+    <!-- description -->
+    <ng-container matColumnDef="description">
+      <mat-header-cell *matHeaderCellDef mat-sort-header>
+        Descrição
+      </mat-header-cell>
+
+      <mat-cell *matCellDef="let unit">
+        {{ unit.description }}
+      </mat-cell>
+    </ng-container>
+
+    <ng-container matColumnDef="action">
+      <mat-header-cell *matHeaderCellDef mat-sort-header>Ação</mat-header-cell>
+      <mat-cell *matCellDef="let unit">
+        <!-- Ícone de editar -->
+        <button mat-icon-button color="primary" (click)="editarUnit(unit)">
+          <i class="fa-solid fa-user-pen"></i>
+        </button>
+
+        <!-- Ícone de deletar -->
+        <button mat-icon-button color="warn" matTooltip="Desativar cliente">
+          <i class="fa-solid fa-trash-can"></i>
+        </button>
+      </mat-cell>
+    </ng-container>
+
+    <!-- Header / Rows -->
+    <mat-header-row *matHeaderRowDef="displayedColumns"></mat-header-row>
+    <mat-row *matRowDef="let client; columns: displayedColumns"></mat-row>
+
+    <!-- Sem dados -->
+    <tr class="mat-row" *matNoDataRow>
+      <td class="mat-cell" colspan="5">
+        Não há dados para o filtro "{{ filterValue }}"
+      </td>
+    </tr>
+  </mat-table>
+
+  <mat-paginator
+    [length]="totalElements"
+    [pageSize]="pageSize"
+    [pageIndex]="pageIndex"
+    [pageSizeOptions]="[5, 10, 20]"
+    showFirstLastButtons
+  >
+  </mat-paginator>
+</div>

@@ -1,0 +1,125 @@
+<div class="toolbar">
+  <mat-form-field appearance="outline" class="filter-field">
+    <mat-label>Pesquisar</mat-label>
+    <input
+      matInput
+      (keyup)="applyFilter($event)"
+      placeholder="Ex: Nome, Categoria..."
+    />
+    <button mat-icon-button matSuffix aria-label="Pesquisar">
+      <i class="fa-solid fa-magnifying-glass"></i>
+    </button>
+  </mat-form-field>
+
+  <button mat-raised-button class="btn-add" (click)="abrirDialog()">
+    <i class="fa-solid fa-plus"></i>
+    Adicionar
+  </button>
+</div>
+
+<div class="mat-elevation-z4">
+  <mat-table [dataSource]="dataSource" matSort>
+    <ng-container matColumnDef="image">
+      <mat-header-cell *matHeaderCellDef mat-sort-header>
+        Imagem
+      </mat-header-cell>
+
+      <mat-cell *matCellDef="let element">
+        <img
+        class="imagem"
+          [src]="getImage(element.image)"
+          alt="Produto"
+          width="50"
+          height="50"
+          (mouseenter)="showPreview($event, element.image)"
+          (mousemove)="movePreview($event)"
+          (mouseleave)="hidePreview()"
+          aria-label="Visualizar Imagem"
+        />
+      </mat-cell>
+    </ng-container>
+    <ng-container matColumnDef="reference">
+      <mat-header-cell *matHeaderCellDef mat-sort-header
+        >Referência</mat-header-cell
+      >
+      <mat-cell *matCellDef="let product">{{ product.reference }}</mat-cell>
+    </ng-container>
+
+    <ng-container matColumnDef="name">
+      <mat-header-cell *matHeaderCellDef mat-sort-header>Nome</mat-header-cell>
+      <mat-cell *matCellDef="let product">{{ product.name }}</mat-cell>
+    </ng-container>
+
+    <ng-container matColumnDef="unitPrice">
+      <mat-header-cell *matHeaderCellDef mat-sort-header>Preço</mat-header-cell>
+      <mat-cell *matCellDef="let product"
+        ><strong>{{ product.unitPrice | mtzCurrency }}</strong></mat-cell
+      >
+    </ng-container>
+
+    <ng-container matColumnDef="category">
+      <mat-header-cell *matHeaderCellDef mat-sort-header
+        >Categoria</mat-header-cell
+      >
+      <mat-cell *matCellDef="let product">{{ product.category.name }}</mat-cell>
+    </ng-container>
+
+    <ng-container matColumnDef="action">
+      <mat-header-cell *matHeaderCellDef>Ação</mat-header-cell>
+      <mat-cell *matCellDef="let product">
+        <button
+          mat-icon-button
+          color="primary"
+          (click)="editarProduto(product)"
+          aria-label="Editar Produto"
+        >
+          <i class="fa-solid fa-user-pen"></i>
+        </button>
+        <button
+          mat-icon-button
+          color=""
+          matTooltip="Visualizar Produto"
+          (click)="visualizarProduto(product)"
+          aria-label="Visualizar Produto"
+        >
+          <i class="fa-solid fa-eye"></i>
+        </button>
+        <button
+          mat-icon-button
+          color="warn"
+          matTooltip="Desativar Produto"
+          (click)="desativarProduto(product)"
+          aria-label="Desativar Produto"
+        >
+          <i class="fa-solid fa-trash-can"></i>
+        </button>
+      </mat-cell>
+    </ng-container>
+
+    <mat-header-row *matHeaderRowDef="displayedColumns"></mat-header-row>
+    <mat-row *matRowDef="let row; columns: displayedColumns"></mat-row>
+
+    <tr class="mat-row" *matNoDataRow>
+      <td class="mat-cell" colspan="5">
+        Não há dados para o filtro "{{ filterValue }}"
+      </td>
+    </tr>
+  </mat-table>
+
+  <mat-paginator
+    [length]="totalElements"
+    [pageSize]="pageSize"
+    [pageIndex]="pageIndex"
+    [pageSizeOptions]="[5, 10, 20]"
+    showFirstLastButtons
+  >
+  </mat-paginator>
+
+  <div
+    class="image-preview"
+    *ngIf="previewImage"
+    [ngStyle]="{ top: previewY + 'px', left: previewX + 'px' }"
+  >
+    <img [src]="getImage(previewImage)" alt="Visualização da Imagem" />
+  </div>
+</div>

@@ -1,0 +1,67 @@
+<!-- Spinner Global -->
+<div class="global-loader" *ngIf="isLoading$ | async">
+  <nb-spinner size="giant" status="primary"></nb-spinner>
+</div>
+
+<!-- Layout Autenticado -->
+<ng-container *ngIf="isLoggedIn$ | async; else loginTemplate">
+  <nb-layout>
+
+    <!-- Header / Toolbar Superior -->
+    <nb-layout-header fixed>
+      <div class="header-container">
+        
+        <!-- Botão para abrir/fechar menu e Nome/Ícone -->
+        <div class="header-left">
+          <button nbButton ghost (click)="toggleSidebar()">
+            <nb-icon icon="menu-outline"></nb-icon>
+          </button>
+          <span class="menu-title" *ngIf="!popText">{{ menuName }}</span>
+        </div>
+
+        <!-- Perfil do Utilizador no Topo -->
+        <div class="header-right">
+          <nb-user 
+            [name]="auth.getUser()?.fullName || 'Utilizador'" 
+            title="Software Engineer"
+            [picture]="getImage(auth.getUser()?.image)"
+            [nbContextMenu]="userMenu"
+            nbContextMenuTag="user-context-menu">
+          </nb-user>
+        </div>
+
+      </div>
+    </nb-layout-header>
+
+    <!-- Sidebar / Menu Lateral Equivalente ao mat-sidenav -->
+    <nb-sidebar class="menu-sidebar" tag="sidebar" [responsive]="true" [compactedBreakpoints]="['xs', 'is', 'sm', 'md']">
+    
+
+      <!-- Menu de Navegação Automático do Nebular -->
+      <nb-menu [items]="items_menu"></nb-menu>
+
+    </nb-sidebar>
+
+    <!-- Conteúdo Principal (Equivalente ao mat-sidenav-content) -->
+    <nb-layout-column style="display: flex; flex-direction: column; min-height: 100vh;">
+      
+      <div style="flex: 1 1 auto;">
+        <router-outlet></router-outlet>
+      </div>
+
+    </nb-layout-column>
+
+    <!-- Rodapé -->
+    <nb-layout-footer fixed>
+      <span class="created-by">
+        © 2026 <b>Matola Gas Company</b>. Todos os direitos reservados.
+      </span>
+    </nb-layout-footer>
+
+  </nb-layout>
+</ng-container>
+
+<!-- Template de Login (Apenas Renderiza o Router Outlet sem Layout) -->
+<ng-template #loginTemplate>
+  <router-outlet></router-outlet>
+</ng-template>

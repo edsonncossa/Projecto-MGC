@@ -1,0 +1,115 @@
+@use 'themes' as *;
+
+@use '@nebular/theme/styles/globals' as *;
+
+@include nb-install() {
+  @include nb-theme-global();
+};
+/* You can add global styles to this file, and also import other style files */
+@import '../node_modules/@fortawesome/fontawesome-free/css/all.min.css';
+
+html,
+body {
+  height: 100%;
+  margin: 0;
+}
+
+mat-sidenav-container {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+mat-sidenav-content {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+body {
+  margin: 0;
+  font-family: Roboto, "Helvetica Neue", sans-serif;
+}
+
+.content {
+  padding: 20px;
+  border-radius: 5px;
+  margin: -30px 34px 35px;
+  background-color: white;
+}
+
+/* ===== SNACKBAR GLOBAL ===== */
+
+/*  Sucesso - Verde */
+.success-snackbar {
+  background: #059669 !important;
+  color: white !important;
+  font-weight: 500;
+
+  .mat-simple-snackbar-action {
+    color: white !important;
+    font-weight: 600;
+  }
+}
+
+/* Erro - Vermelho */
+.error-snackbar {
+  background: #DC2626 !important;
+  color: white !important;
+  font-weight: 500;
+
+  .mat-simple-snackbar-action {
+    color: white !important;
+    font-weight: 600;
+  }
+}
+
+/* Aviso - Âmbar/Laranja */
+.warning-snackbar {
+  background: #F59E0B !important;
+  color: white !important;
+  font-weight: 500;
+
+  .mat-simple-snackbar-action {
+    color: white !important;
+    font-weight: 600;
+  }
+}
+
+/* Info - Azul */
+.info-snackbar {
+  background: #3B82F6 !important;
+  color: white !important;
+  font-weight: 500;
+
+  .mat-simple-snackbar-action {
+    color: white !important;
+    font-weight: 600;
+  }
+}
+
+/* Animação suave */
+.mat-snack-bar-container {
+  border-radius: 8px !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15) !important;
+}
+
+.global-loader {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+
+  background: rgba(0, 0, 0, 0.35);
+
+  display: flex;
+  justify-content: center;
+  align-items: center;
+
+  z-index: 99999;
+}
+
+.global-loader mat-spinner circle {
+  stroke: #1f4e9a !important;
+}

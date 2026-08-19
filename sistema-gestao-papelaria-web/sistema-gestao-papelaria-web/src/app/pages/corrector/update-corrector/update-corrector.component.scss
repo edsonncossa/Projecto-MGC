@@ -1,0 +1,30 @@
+.form-container {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 16px 0;
+}
+
+.form-row {
+  display: flex;
+  flex-direction: row;
+  gap: 16px;
+  width: 100%;
+
+  .form-field {
+    flex: 1;
+    width: 100%;
+  }
+
+  @media (max-width: 600px) {
+    flex-direction: column;
+    gap: 0px;
+  }
+}
+
+.full-width-row {
+  .form-field {
+    flex: none;
+    width: 100%;
+  }
+}

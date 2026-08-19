@@ -1,0 +1,39 @@
+server:
+  servlet:
+    context-path: /sistema-gestao-papelaria-api
+
+spring:
+  application:
+    name: sistema-gestao-papelaria
+
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://localhost:3306/mgc?useTimezone=true&serverTimezone=UTC
+    username: root
+    password: 142319284
+
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+    open-in-view: false
+    properties:
+      hibernate:
+
+  jackson:
+    serialization:
+      write-dates-as-timestamps: false
+    date-format: yyyy-MM-dd HH:mm:ss
+    time-zone: Europe/Lisbon
+
+logging:
+  level:
+    mz.com.sgp: DEBUG
+
+cors:
+  originPatterns: http://localhost:4200
+
+google:
+  drive:
+   credentials-file: classpath:credentials.json
+   folder-id: 1AHEzsXmWbWGJXVAArQohgBYIYw8eI4_M

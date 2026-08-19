@@ -1,0 +1,71 @@
+<div class="toolbar">
+  <mat-form-field appearance="outline" class="filter-field">
+    <mat-label>Pesquisar</mat-label>
+    <input matInput (keyup)="applyFilter($event)" placeholder="Ex: Nome do Corretor" />
+    <button mat-icon-button matSuffix>
+      <i class="fa-solid fa-magnifying-glass"></i>
+    </button>
+  </mat-form-field>
+
+  <button mat-raised-button class="btn-add" (click)="abrirDialog()">
+    <i class="fa-solid fa-plus"></i>
+    Adicionar Corretor
+  </button>
+</div>
+
+<div class="mat-elevation-z4">
+  <mat-table [dataSource]="dataSource" matSort>
+    
+    <ng-container matColumnDef="name">
+      <mat-header-cell *matHeaderCellDef mat-sort-header>Nome</mat-header-cell>
+      <mat-cell *matCellDef="let corrector">{{ corrector.name }}</mat-cell>
+    </ng-container>
+
+    <ng-container matColumnDef="model">
+      <mat-header-cell *matHeaderCellDef mat-sort-header>Modelo</mat-header-cell>
+      <mat-cell *matCellDef="let corrector">
+        {{ corrector.model ? corrector.model : "Não aplicável" }}
+      </mat-cell>
+    </ng-container>
+
+    <ng-container matColumnDef="serialNumber">
+      <mat-header-cell *matHeaderCellDef mat-sort-header>Número de Série</mat-header-cell>
+      <mat-cell *matCellDef="let corrector">{{ corrector.serialNumber }}</mat-cell>
+    </ng-container>
+
+    <ng-container matColumnDef="downloadExtension">
+      <mat-header-cell *matHeaderCellDef mat-sort-header>Extensão de Download</mat-header-cell>
+      <mat-cell *matCellDef="let corrector">{{ corrector.downloadExtension }}</mat-cell>
+    </ng-container>
+
+    <ng-container matColumnDef="action">
+      <mat-header-cell *matHeaderCellDef>Ações</mat-header-cell>
+      <mat-cell *matCellDef="let corrector">
+        <button mat-icon-button color="primary" (click)="editarCorrector(corrector)" matTooltip="Editar corretor">
+          <i class="fa-solid fa-pen-to-square"></i>
+        </button>
+
+        <button mat-icon-button color="warn" (click)="desativarCorrector(corrector)" matTooltip="Desativar corretor">
+          <i class="fa-solid fa-trash-can"></i>
+        </button>
+      </mat-cell>
+    </ng-container>
+
+    <mat-header-row *matHeaderRowDef="displayedColumns"></mat-header-row>
+    <mat-row *matRowDef="let corrector; columns: displayedColumns"></mat-row>
+
+    <tr class="mat-row" *matNoDataRow>
+      <td class="mat-cell" colspan="5" style="text-align: center; padding: 20px;">
+        Não foram encontrados corretores para o filtro "{{ filterValue }}"
+      </td>
+    </tr>
+  </mat-table>
+
+  <mat-paginator 
+    [length]="totalElements" 
+    [pageSize]="pageSize" 
+    [pageIndex]="pageIndex" 
+    [pageSizeOptions]="[5, 10, 20]"
+    showFirstLastButtons>
+  </mat-paginator>
+</div>

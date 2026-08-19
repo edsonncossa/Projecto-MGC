@@ -1,0 +1,86 @@
+<!--Título muda baseado no modo -->
+<h2 mat-dialog-title class="dialog-title">
+<span class="icon-container">
+    <mat-icon class="icon-main">gas_meter</mat-icon>
+    <i class="fa-solid mini-indicator" [class.fa-plus]="!isEditMode" [class.fa-pen]="isEditMode"></i>
+  </span>
+  {{ isEditMode ? "Editar Corretor" : "Novo Corretor" }}
+</h2>
+
+<mat-dialog-content [formGroup]="form">
+  <div class="row">
+
+    <mat-form-field appearance="fill">
+      <mat-label>Nome</mat-label>
+      <input matInput formControlName="name" />
+      <mat-error *ngIf="form.get('name')?.hasError('required')">
+        Nome do Corretor é obrigatório
+      </mat-error>
+    </mat-form-field>
+  </div>
+
+  <div class="row">
+
+    <mat-form-field appearance="fill">
+      <mat-label>Modelo</mat-label>
+      <input matInput formControlName="model" />
+      <mat-error *ngIf="form.get('model')?.hasError('required')">
+        Modelo é obrigatório
+      </mat-error>
+    </mat-form-field>
+  </div>
+
+  <div class="row">
+    <mat-form-field appearance="fill">
+      <mat-label>Número de Série</mat-label>
+      <input matInput formControlName="serialNumber" />
+      <mat-error *ngIf="form.get('serialNumber')?.hasError('required')">
+        Número de Série é obrigatório
+      </mat-error>
+    </mat-form-field>
+  </div>
+
+  <div class="row">
+<mat-form-field appearance="outline" class="full-width">
+      <mat-label>Extensão de Download</mat-label>
+      <mat-select formControlName="downloadExtension">
+        <mat-option *ngFor="let ext of extensions" [value]="ext">
+          {{ ext }}
+        </mat-option>
+      </mat-select>
+      <mat-error *ngIf="form.get('downloadExtension')?.hasError('required')">
+        Extensão de Download é obrigatória
+      </mat-error>
+    </mat-form-field>
+  </div>
+</mat-dialog-content>
+
+<mat-dialog-actions align="end">
+  <button mat-button (click)="cancelar()" type="button" class="btn-cancel">
+    <i class="fa-regular fa-circle-xmark"></i>
+    Cancelar
+  </button>
+  <!-- Botão Salvar com Loading -->
+  <button
+    mat-raised-button
+    (click)="salvar()"
+    [disabled]="form.invalid || isLoading"
+    type="submit"
+    class="btn-save"
+  >
+    <!--Spinner de carregamento -->
+    <mat-progress-spinner
+      *ngIf="isLoading"
+      diameter="18"
+      mode="indeterminate"
+      color="white"
+    >
+    </mat-progress-spinner>
+
+    <!-- Ícone quando não está carregando -->
+    <i *ngIf="!isLoading" class="fa-regular fa-floppy-disk"></i>
+
+    <!-- Texto dinâmico -->
+    {{ isLoading ? "Salvando..." : "Salvar" }}
+  </button>
+</mat-dialog-actions>

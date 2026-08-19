@@ -1,0 +1,105 @@
+<div class="user-info">
+  <i class="fa-solid fa-box"></i>
+  <span><strong>Usuário:</strong> {{ this.auth.getUser()?.userName }} </span>
+  <span
+    ><strong>Nome Completo:</strong>{{ this.auth.getUser()?.fullName }}</span
+  >
+</div>
+
+<div class="profile-container">
+  <div class="avatar-container">
+    <img class="avatar" [src]="getImage()" alt="Foto do usuário" />
+    <input type="file" (change)="onFileSelected($event)" aria-label="Selecionar Imagem" />
+    <button mat-raised-button class="btn-save" (click)="updateImage()">
+      Alterar Imagem
+    </button>
+  </div>
+
+  <div class="alterPassword">
+    <div class="section-header">
+      <h2><i class="fa-solid fa-arrow-right-arrow-left"></i> Alterar Senha</h2>
+    </div>
+    <mat-dialog-content [formGroup]="form">
+      <div class="row">
+        <mat-form-field appearance="fill">
+          <mat-label>Senha Atual</mat-label>
+          <input
+            matInput
+            [type]="hideOld ? 'password' : 'text'"
+            formControlName="oldPassword"
+            aria-label="Senha"
+          />
+          <button
+            mat-icon-button
+            matSuffix
+            type="button"
+            (click)="hideOld = !hideOld"
+          >
+            <mat-icon>{{ hideOld ? "visibility_off" : "visibility" }}</mat-icon>
+          </button>
+          <mat-error *ngIf="form.get('oldPassword')?.hasError('required')">
+            Senha atual é obrigatória
+          </mat-error>
+        </mat-form-field>
+      </div>
+      <div class="row">
+        <mat-form-field appearance="fill">
+          <mat-label>Nova Senha</mat-label>
+
+          <input
+            matInput
+            [type]="hideNew ? 'password' : 'text'"
+            formControlName="newPassword"
+            aria-label="Nova Senha"
+
+          />
+
+          <button
+            mat-icon-button
+            matSuffix
+            type="button"
+            (click)="hideNew = !hideNew"
+          >
+            <mat-icon>{{ hideNew ? "visibility_off" : "visibility" }}</mat-icon>
+          </button>
+
+          <mat-error *ngIf="form.get('newPassword')?.hasError('required')">
+            Nova senha é obrigatória
+          </mat-error>
+        </mat-form-field>
+      </div>
+      <div class="row">
+        <mat-form-field appearance="fill">
+          <mat-label>Confirmar Nova Senha</mat-label>
+          <input
+            matInput
+            [type]="hideConfirm ? 'password' : 'text'"
+            formControlName="confirmPassword"
+            aria-label="Confirmar Nova Senha"
+          />
+          <button
+            mat-icon-button
+            matSuffix
+            type="button"
+            (click)="hideConfirm = !hideConfirm"
+          >
+            <mat-icon>{{
+              hideConfirm ? "visibility_off" : "visibility"
+            }}</mat-icon>
+          </button>
+          <mat-error *ngIf="form.get('confirmPassword')?.hasError('required')">
+            Confirmação é obrigatória
+          </mat-error>
+        </mat-form-field>
+      </div>
+    </mat-dialog-content>
+    <button
+      mat-raised-button
+      class="btn-save"
+      [disabled]="form.invalid || isLoading"
+      (click)=" changePassword()"
+    >
+      Salvar
+    </button>
+  </div>
+</div>
