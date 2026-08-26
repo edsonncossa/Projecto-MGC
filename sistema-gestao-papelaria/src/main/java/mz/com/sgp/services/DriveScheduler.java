@@ -17,7 +17,7 @@ public class DriveScheduler {
     @Autowired
     private ImportServices importServices;
 
-    @Scheduled(cron = "0 */1 * * * *")
+    @Scheduled(cron = "0 */20 * * * *")
     public void syncDriveFilesTask() {
         System.out.println("🔄 [AGENDAMENTO] A verificar novos ficheiros no Google Drive...");
 
