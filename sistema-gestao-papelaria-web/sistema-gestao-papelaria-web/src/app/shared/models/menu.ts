@@ -16,6 +16,16 @@ export const MENU_ITEMS: NbMenuItem[] = [
     icon: 'people-outline',
     link: '/client',
   },
+    {
+    title: 'Localização dos Clientes',
+    group: true,
+  },
+  {
+    title: 'Mapa de Localização',
+    icon: 'map',
+    link: '/client',
+  },
+
     /*{
     title: 'Emitir Certificado',
     icon: 'award-outline',

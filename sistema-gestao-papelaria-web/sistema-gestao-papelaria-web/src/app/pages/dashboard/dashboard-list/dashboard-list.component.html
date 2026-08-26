@@ -97,8 +97,40 @@
           <nb-option value="MONTHLY">📅 Visão Mensal</nb-option>
           <nb-option value="YEARLY">📊 Visão Anual</nb-option>
           <nb-option value="RANGE">🗓️ Intervalo Personalizado</nb-option>
+          <nb-option value="MONTHCOMPARATION">🗓️ Comparação Mensal</nb-option>
+           <nb-option value="YEARCOMPARATION">🗓️ Comparação Anual</nb-option>
         </nb-select>
       </div>
+
+      <!-- Mês e Ano - Período 1 (MONTHCOMPARATION) -->
+<div class="filter-control filter-sm" *ngIf="viewMode === 'MONTHCOMPARATION'">
+  <label class="label">Mês 1</label>
+  <nb-select [(ngModel)]="selectedMonth" (selectedChange)="recarregarDadosDashboard()" fullWidth placeholder="Mês 1">
+    <nb-option *ngFor="let m of meses; let i = index" [value]="i">{{ m }}</nb-option>
+  </nb-select>
+</div>
+
+<div class="filter-control filter-sm" *ngIf="viewMode === 'MONTHCOMPARATION'">
+  <label class="label">Ano 1</label>
+  <nb-select [(ngModel)]="selectedYear" (selectedChange)="recarregarDadosDashboard()" fullWidth placeholder="Ano 1">
+    <nb-option *ngFor="let y of anos" [value]="y">{{ y }}</nb-option>
+  </nb-select>
+</div>
+
+<!-- Mês e Ano - Período 2 (MONTHCOMPARATION) -->
+<div class="filter-control filter-sm" *ngIf="viewMode === 'MONTHCOMPARATION'">
+  <label class="label">Mês 2</label>
+  <nb-select [(ngModel)]="selectedMonth2" (selectedChange)="recarregarDadosDashboard()" fullWidth placeholder="Mês 2">
+    <nb-option *ngFor="let m of meses; let i = index" [value]="i">{{ m }}</nb-option>
+  </nb-select>
+</div>
+
+<div class="filter-control filter-sm" *ngIf="viewMode === 'MONTHCOMPARATION'">
+  <label class="label">Ano 2</label>
+  <nb-select [(ngModel)]="selectedYear2" (selectedChange)="recarregarDadosDashboard()" fullWidth placeholder="Ano 2">
+    <nb-option *ngFor="let y of anos" [value]="y">{{ y }}</nb-option>
+  </nb-select>
+</div>
 
       <!-- Mês (Exibido apenas em MONTHLY) -->
       <div class="filter-control filter-sm" *ngIf="viewMode === 'MONTHLY'">
