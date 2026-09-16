@@ -1,11 +1,23 @@
 import { NbMenuItem } from '@nebular/theme';
 
 export const MENU_ITEMS: NbMenuItem[] = [
-  {
+{
     title: 'Dashboard',
     icon: 'home-outline',
-    link: '/dashboard',
     home: true,
+    children: [
+         {
+        title: 'Entradas',
+        icon: 'trending-up-outline',   
+        link: '/dashboard/entradas',   
+      },
+      {
+        title: 'Saídas',
+        icon: 'trending-down-outline', 
+        link: '/dashboard',           
+      },
+   
+    ],
   },
   {
     title: 'GESTÃO DE CONSUMO',
@@ -17,13 +29,13 @@ export const MENU_ITEMS: NbMenuItem[] = [
     link: '/client',
   },
     {
-    title: 'Localização dos Clientes',
+    title: 'LOCALIZAÇÃO DOS CLIENTES',
     group: true,
   },
   {
     title: 'Mapa de Localização',
     icon: 'map',
-    link: '/client',
+    link: '',
   },
 
     /*{

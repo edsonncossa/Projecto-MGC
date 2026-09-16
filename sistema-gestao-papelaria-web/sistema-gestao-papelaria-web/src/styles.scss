@@ -113,3 +113,55 @@ body {
 .global-loader mat-spinner circle {
   stroke: #1f4e9a !important;
 }
+
+/* ===== MENU FLUTUANTE NEBULAR ===== */
+
+/* 1. Transforma a sidebar num card suspenso */
+nb-sidebar.left {
+  position: fixed !important;
+  top: 80px !important;            /* Espaço abaixo da navbar superior */
+  left: 20px !important;           /* Margem da borda esquerda */
+  height: calc(100vh - 100px) !important; /* Altura ajustada à tela */
+  z-index: 1000 !important;
+  
+  /* Estilização visual (efeito flutuante) */
+  border-radius: 14px !important;
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.08) !important;
+  border: 1px solid rgba(226, 232, 240, 0.8) !important;
+  overflow: hidden !important;
+  background-color: #ffffff !important;
+  transition: all 0.3s ease !important;
+}
+
+/* Fix para arredondar os cantos internos do container do Nebular */
+nb-sidebar .scrollable {
+  border-radius: 14px !important;
+}
+
+/* 2. Ajusta o layout do conteúdo para não ficar oculto sob a sidebar */
+nb-layout-column {
+  max-width: 100% !important;
+  padding: 1.5rem !important;
+  padding-left: 280px !important;  /* Largura do menu + espaçamento */
+  transition: padding-left 0.3s ease !important;
+}
+
+/* 3. Ajuste quando a sidebar estiver compactada/recolhida */
+nb-sidebar.compacted {
+  width: 80px !important;
+}
+
+nb-sidebar.compacted ~ nb-layout-column {
+  padding-left: 100px !important;
+}
+
+/* 4. Responsividade para telas menores */
+@media (max-width: 992px) {
+  nb-sidebar.left {
+    top: 65px !important;
+    left: 10px !important;
+    height: calc(100vh - 80px) !important;
+  }
+
+
+}

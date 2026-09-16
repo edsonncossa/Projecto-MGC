@@ -16,4 +16,8 @@ $nb-themes: nb-register-theme((
   // color-primary-800: #102694,
   // color-primary-900: #091c7a,
 
+  sidebar-header-height: 0rem,
+  sidebar-shadow: 0 10px 25px rgba(0, 0, 0, 0.08),
+  sidebar-border-radius: 16px,
+
 ), default, default);
