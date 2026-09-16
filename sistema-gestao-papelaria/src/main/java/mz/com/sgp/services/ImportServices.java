@@ -49,10 +49,10 @@ public class ImportServices {
 
     private static final DateTimeFormatter FLEXIBLE_DATE_TIME_FORMATTER = new DateTimeFormatterBuilder()
             .parseCaseInsensitive()
-            .appendPattern("[yyyy-MM-dd'T'HH:mm:ss][yyyy-MM-dd'T'HH:mm][yyyy-MM-dd HH:mm:ss][yyyy-MM-dd HH:mm][dd/MM/yyyy HH:mm:ss][dd/MM/yyyy HH:mm][MM/dd/yyyy HH:mm:ss][MM/dd/yyyy HH:mm][M/d/yyyy h:mm:ss a][M/d/yyyy h:mm a][dd.MM.yyyy HH:mm:ss][dd.MM.yyyy HH:mm][yyyy/MM/dd HH:mm:ss][yyyy/MM/dd HH:mm]")
+            .appendPattern("[yyyy-MM-dd'T'HH:mm:ss][yyyy-MM-dd'T'HH:mm][yyyy-MM-dd HH:mm:ss][yyyy-MM-dd HH:mm][dd/MM/yyyy HH:mm:ss][dd/MM/yyyy HH:mm][MM/dd/yyyy HH:mm:ss][MM/dd/yyyy HH:mm][M/d/yyyy h:mm:ss a][M/d/yyyy h:mm a][dd.MM.yyyy HH:mm:ss][dd.MM.yyyy HH:mm][yyyy/MM/dd HH:mm:ss][yyyy/MM/dd HH:mm][dd-MM-yyyy HH:mm:ss][dd-MM-yyyy HH:mm]")
             .toFormatter(Locale.ENGLISH);
 
-    private static final DateTimeFormatter FLEXIBLE_DATE_FORMATTER = DateTimeFormatter.ofPattern("[yyyy-MM-dd][dd/MM/yyyy][MM/dd/yyyy][M/d/yyyy][dd.MM.yyyy][yyyy/MM/dd]");
+    private static final DateTimeFormatter FLEXIBLE_DATE_FORMATTER = DateTimeFormatter.ofPattern("[yyyy-MM-dd][dd/MM/yyyy][MM/dd/yyyy][M/d/yyyy][dd.MM.yyyy][yyyy/MM/dd][dd-MM-yyyy]");
     
     private static final DateTimeFormatter TIME_FORMATTER = new DateTimeFormatterBuilder()
             .parseCaseInsensitive()
@@ -77,16 +77,8 @@ public class ImportServices {
 
         String cleanFileName = fileName.trim();
         String extension = cleanFileName.substring(cleanFileName.lastIndexOf('.') + 1).toLowerCase();
-        
 
         Matcher matcher = STRICT_FILE_NAME_PATTERN.matcher(cleanFileName);
-        
-//        if (!matcher.matches()) {
-//            throw new IllegalArgumentException(
-//                "Nome do ficheiro inválido: '" + cleanFileName + 
-//                "'. O padrão esperado é 'Hlog - NomeCliente - AAAA MM.ext' (ex: 'Hlog - Parmalat - 2026 06.csv')."
-//            );
-//        }
         
         if (!matcher.matches()) {
             System.err.println(
@@ -94,7 +86,6 @@ public class ImportServices {
                     "'. O padrão esperado é 'Hlog - NomeCliente - AAAA MM.ext' (ex: 'Hlog - Parmalat - 2026 06.csv')."
                 );
             INVALID_NAMING_FILES.add(cleanFileName); 
-            
             return; 
         }
 
@@ -128,6 +119,12 @@ public class ImportServices {
             }
 
             if (!consumptionsToSave.isEmpty()) {
+                // ORDENAÇÃO CRESCENTE PELO CONSUMPTIONDATE (Data e Hora)
+                consumptionsToSave.sort(Comparator.comparing(
+                    ConsumptionEntity::getConsumptionDate, 
+                    Comparator.nullsLast(Comparator.naturalOrder())
+                ));
+
                 consumptionRepository.saveAll(consumptionsToSave);
             }
             System.out.println("✅ Importação concluída! " + consumptionsToSave.size() + " registos inseridos (" + cleanFileName + ")");
@@ -151,7 +148,6 @@ public class ImportServices {
             String[] lines = content.split("\\r?\\n");
 
             Map<String, Integer> headerMap = null;
-            String delimiter = null;
 
             for (String rawLine : lines) {
                 String line = rawLine.trim();
@@ -168,7 +164,6 @@ public class ImportServices {
                 if (headerMap == null) {
                     if (isHeaderRow(cols)) {
                         headerMap = buildHeaderMap(cols);
-                        delimiter = currentDelimiter;
                     }
                     continue;
                 }
@@ -178,7 +173,7 @@ public class ImportServices {
                 }
 
                 ConsumptionEntity c = parseRowWithMap(cols, headerMap, fileImport, client);
-                if (c != null) {
+                if (c != null && c.getConsumptionDate() != null) {
                     list.add(c);
                 }
             }
@@ -221,7 +216,7 @@ public class ImportServices {
                     }
 
                     ConsumptionEntity c = parseRowWithMap(cols, headerMap, fileImport, client);
-                    if (c != null) {
+                    if (c != null && c.getConsumptionDate() != null) {
                         list.add(c);
                     }
                 }
@@ -394,13 +389,22 @@ public class ImportServices {
             return LocalDateTime.of(date, time);
         } catch (Exception e) {
 
-        	try {
+            try {
                 String[] dParts = dateStr.split("[/-]");
                 if (dParts.length == 3) {
-                    int m = Integer.parseInt(dParts[0]);
-                    int d = Integer.parseInt(dParts[1]);
-                    int y = Integer.parseInt(dParts[2]);
-                    LocalDate date = LocalDate.of(y, m, d);
+                    int p1 = Integer.parseInt(dParts[0]);
+                    int p2 = Integer.parseInt(dParts[1]);
+                    int p3 = Integer.parseInt(dParts[2]);
+
+                    LocalDate date;
+                    if (p1 > 31) {
+                        date = LocalDate.of(p1, p2, p3);
+                    } else if (p1 > 12) {
+                        date = LocalDate.of(p3, p2, p1);
+                    } else {
+                        date = LocalDate.of(p3, p1, p2);
+                    }
+
                     LocalTime time = (timeStr == null || timeStr.isEmpty()) ? LocalTime.MIDNIGHT : LocalTime.parse(timeStr, TIME_FORMATTER);
                     return LocalDateTime.of(date, time);
                 }
@@ -462,14 +466,6 @@ public class ImportServices {
         }
         return DATA_FORMATTER.formatCellValue(cell).trim();
     }
-
-//    private String extractClientNameFromFileName(String fileName) {
-//        String baseName = fileName.replaceAll("(?i)\\.(csv|xls|xlsx|xlsm)$", "");
-//        baseName = baseName.replaceAll("(?i)^Hlog[_-]?", "").trim();
-//        baseName = baseName.replaceAll("[_-]?\\d+$", "").trim();
-//        baseName = baseName.replaceAll("\\d{2}[.-]\\d{2}[.-]\\d{4}", "").trim();
-//        return baseName.isEmpty() ? "DESCONHECIDO" : baseName;
-//    }
 
     private ClientEntity findOrCreateClient(String firstName) {
         return clientRepository.findFirstByFirstNameIgnoreCase(firstName)

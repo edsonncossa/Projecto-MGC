@@ -17,14 +17,16 @@ public class DriveScheduler {
     @Autowired
     private ImportServices importServices;
 
-    @Scheduled(cron = "0 */20 * * * *")
+    @Scheduled(cron = "0 */30 * * * *")
     public void syncDriveFilesTask() {
+    	
         System.out.println("🔄 [AGENDAMENTO] A verificar novos ficheiros no Google Drive...");
 
         try {
             UsernamePasswordAuthenticationToken systemAuth = new UsernamePasswordAuthenticationToken(
                     "SYSTEM_SCHEDULER", null, List.of());
-            SecurityContextHolder.getContext().setAuthentication(systemAuth);
+            
+            SecurityContextHolder.getContext().setAuthentication(systemAuth); 
 
             List<File> files = googleDriveService.listFilesInFolder(); 
 
@@ -34,6 +36,7 @@ public class DriveScheduler {
             }
 
             int importados = 0;
+            
             for (File file : files) { 
                 try {
                     importServices.processDriveFile(file.getId(), file.getName()); 
@@ -48,6 +51,7 @@ public class DriveScheduler {
         } catch (Exception e) {
             System.err.println("❌ [AGENDAMENTO] Falha ao consultar o Google Drive: " + e.getMessage()); 
         } finally {
+        	
             SecurityContextHolder.clearContext();
         }
     }

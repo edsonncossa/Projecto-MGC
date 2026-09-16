@@ -32,9 +32,7 @@ public class GoogleDriveService {
         return new Drive.Builder(
                 GoogleNetHttpTransport.newTrustedTransport(),
                 GsonFactory.getDefaultInstance(),
-                new HttpCredentialsAdapter(credentials))
-                .setApplicationName("SGP-Integration")
-                .build();
+                new HttpCredentialsAdapter(credentials)).setApplicationName("SGP-Integration").build();
     }
 
     /**

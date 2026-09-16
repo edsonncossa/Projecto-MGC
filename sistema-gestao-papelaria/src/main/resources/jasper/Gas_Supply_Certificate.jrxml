@@ -1,8 +1,13 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!-- Created with Jaspersoft Studio version 6.20.6.final using JasperReports Library version 6.20.6-5c96b6aa8a39ac1dc6b6bea4b81168e16dd39231  -->
 <jasperReport xmlns="http://jasperreports.sourceforge.net/jasperreports" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://jasperreports.sourceforge.net/jasperreports http://jasperreports.sourceforge.net/xsd/jasperreport.xsd" name="Gas_Supply_Certificate" pageWidth="595" pageHeight="842" columnWidth="555" leftMargin="20" rightMargin="20" topMargin="20" bottomMargin="20" uuid="462809f4-e01b-481d-8f23-31d9b6ae3759">
-	<parameter name="MGC_LOGO" class="java.lang.String"/>
-	<parameter name="MADE_IN_MOZ" class="java.lang.String"/>
+	<parameter name="MGC_LOGO" class="java.io.InputStream"/>
+	<parameter name="MADE_IN_MOZ" class="java.io.InputStream"/>
+	<parameter name="CUSTOMER_NAME" class="java.lang.String"/>
+	<parameter name="MONTH_YEAR" class="java.lang.String"/>
+	<parameter name="ENERGY_CONTENT" class="java.math.BigDecimal"/>
+	<parameter name="TOTAL_ENERGY_GJ" class="java.math.BigDecimal"/>
+	<parameter name="TOTAL_VOLUME_M3" class="java.math.BigDecimal"/>
 	<queryString>
 		<![CDATA[]]>
 	</queryString>
@@ -20,7 +25,7 @@
 				<text><![CDATA[Gas Supply Certificate]]></text>
 			</staticText>
 			<staticText>
-				<reportElement x="-14" y="100" width="193" height="41" forecolor="#000000" uuid="4d661aad-b499-4f9d-b86c-ce5e3b3515c3"/>
+				<reportElement x="-14" y="77" width="193" height="41" forecolor="#000000" uuid="4d661aad-b499-4f9d-b86c-ce5e3b3515c3"/>
 				<textElement textAlignment="Center">
 					<font size="14" isBold="true"/>
 				</textElement>
@@ -363,16 +368,16 @@
 					</reportElement>
 				</line>
 				<staticText>
-					<reportElement x="242" y="106" width="79" height="16" uuid="3adabcf3-a153-4647-8f68-5e34399efcfa"/>
-					<text><![CDATA[Previous Month]]></text>
+					<reportElement x="242" y="106" width="100" height="16" uuid="3adabcf3-a153-4647-8f68-5e34399efcfa"/>
+					<text><![CDATA[This month Readings]]></text>
 				</staticText>
 				<line>
-					<reportElement x="115" y="122" width="1" height="46" uuid="d0f81424-3a7c-4486-b567-37fb59b595f0">
+					<reportElement x="93" y="123" width="1" height="46" uuid="d0f81424-3a7c-4486-b567-37fb59b595f0">
 						<property name="com.jaspersoft.studio.unit.width" value="px"/>
 					</reportElement>
 				</line>
 				<staticText>
-					<reportElement x="136" y="152" width="40" height="14" uuid="6b4e51de-4504-4cda-ae92-c448e130a165"/>
+					<reportElement x="102" y="152" width="40" height="14" uuid="6b4e51de-4504-4cda-ae92-c448e130a165"/>
 					<text><![CDATA[Meter2]]></text>
 				</staticText>
 				<line>
@@ -387,12 +392,12 @@
 					</reportElement>
 				</line>
 				<line>
-					<reportElement x="195" y="122" width="1" height="46" uuid="557ba7ff-aea0-4665-8f6e-9b9cc2654a34">
+					<reportElement x="152" y="122" width="1" height="46" uuid="557ba7ff-aea0-4665-8f6e-9b9cc2654a34">
 						<property name="com.jaspersoft.studio.unit.width" value="px"/>
 					</reportElement>
 				</line>
 				<staticText>
-					<reportElement x="139" y="122" width="40" height="14" uuid="b42e90b3-87b3-498d-82a0-5a5d611cd0ae"/>
+					<reportElement x="101" y="124" width="40" height="14" uuid="b42e90b3-87b3-498d-82a0-5a5d611cd0ae"/>
 					<text><![CDATA[Reading]]></text>
 				</staticText>
 				<line>
@@ -417,11 +422,11 @@
 					</reportElement>
 				</line>
 				<staticText>
-					<reportElement x="135" y="139" width="40" height="14" uuid="d0a7e699-d54a-4ae6-8632-e52230b6b45a"/>
+					<reportElement x="101" y="139" width="40" height="14" uuid="d0a7e699-d54a-4ae6-8632-e52230b6b45a"/>
 					<text><![CDATA[Meter1]]></text>
 				</staticText>
 				<line>
-					<reportElement x="116" y="152" width="131" height="1" uuid="f7cda141-6f73-4c61-b539-f5b68fa5655d">
+					<reportElement x="94" y="152" width="118" height="1" uuid="f7cda141-6f73-4c61-b539-f5b68fa5655d">
 						<property name="com.jaspersoft.studio.unit.width" value="px"/>
 						<property name="com.jaspersoft.studio.unit.height" value="px"/>
 					</reportElement>
@@ -432,7 +437,7 @@
 					</reportElement>
 				</line>
 				<staticText>
-					<reportElement x="218" y="123" width="82" height="14" uuid="dc4ad0bc-2d9b-4731-b9f2-054d7319a333"/>
+					<reportElement x="188" y="123" width="82" height="14" uuid="dc4ad0bc-2d9b-4731-b9f2-054d7319a333"/>
 					<text><![CDATA[Volume (Std m³)]]></text>
 				</staticText>
 				<line>
@@ -445,7 +450,7 @@
 					<text><![CDATA[Energy (MJ/m³n)]]></text>
 				</staticText>
 				<line>
-					<reportElement x="247" y="136" width="1" height="31" uuid="5bd954cf-d0f4-446e-a81a-6ce12235b057">
+					<reportElement x="212" y="136" width="1" height="31" uuid="5bd954cf-d0f4-446e-a81a-6ce12235b057">
 						<property name="com.jaspersoft.studio.unit.width" value="px"/>
 					</reportElement>
 				</line>
@@ -463,6 +468,21 @@
 					<reportElement x="444" y="123" width="92" height="14" uuid="1d107b23-5fd1-4912-b3b8-f1fb43d6f23d"/>
 					<text><![CDATA[Energy (Std m³/GJ)]]></text>
 				</staticText>
+				<textField>
+					<reportElement x="320" y="137" width="110" height="16" uuid="958dafc6-be6a-432c-b815-5ae1f63aa545"/>
+					<textFieldExpression><![CDATA[$P{ENERGY_CONTENT}]]></textFieldExpression>
+				</textField>
+				<textField>
+					<reportElement x="431" y="153" width="110" height="16" uuid="f6635098-bb9a-4d4d-a28c-6292de78ddb8"/>
+					<textFieldExpression><![CDATA[$P{TOTAL_ENERGY_GJ}]]></textFieldExpression>
+				</textField>
+				<textField>
+					<reportElement x="218" y="144" width="96" height="16" uuid="38d56434-b12a-4e0b-92eb-8b11645cc4c7"/>
+					<textElement>
+						<font size="8"/>
+					</textElement>
+					<textFieldExpression><![CDATA[$P{TOTAL_VOLUME_M3}]]></textFieldExpression>
+				</textField>
 			</frame>
 			<frame>
 				<reportElement x="0" y="386" width="555" height="164" uuid="767b9988-61d5-4bbd-ae3d-f3516c67e980">
@@ -603,6 +623,14 @@
 					<bottomPen lineWidth="1.0" lineStyle="Solid" lineColor="#000000"/>
 					<rightPen lineWidth="1.0" lineStyle="Solid" lineColor="#000000"/>
 				</box>
+				<textField>
+					<reportElement x="58" y="33" width="110" height="16" uuid="37ddf82a-8799-4efc-838b-0ad2d0d1e68d"/>
+					<textFieldExpression><![CDATA[$P{CUSTOMER_NAME}]]></textFieldExpression>
+				</textField>
+				<textField>
+					<reportElement x="331" y="-67" width="98" height="16" uuid="49007f16-a149-4edf-9c44-c2472de0241a"/>
+					<textFieldExpression><![CDATA[$P{MONTH_YEAR}]]></textFieldExpression>
+				</textField>
 			</frame>
 		</band>
 	</detail>

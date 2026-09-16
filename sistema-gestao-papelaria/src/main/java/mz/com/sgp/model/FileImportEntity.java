@@ -34,10 +34,12 @@ public class FileImportEntity extends AuditableEntity {
 	private Long clientId;
 
 	public String getFileName() {
+		
 		return fileName;
 	}
 
 	public void setFileName(String fileName) {
+		
 		this.fileName = fileName;
 	}
 	public LocalDateTime getFileDate() {
