@@ -1,6 +1,6 @@
 package mz.com.sgp.services;
 
-import java.io.InputStream;
+import java.io.InputStream; 
 import java.math.BigDecimal;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
@@ -42,27 +42,32 @@ public class ImportServices {
     @Autowired
     private ClientRepository clientRepository;
 
-    private static final DataFormatter DATA_FORMATTER = new DataFormatter();
+    private static final DataFormatter DATA_FORMATTER = new DataFormatter(); 
 
     private static final Pattern STRICT_FILE_NAME_PATTERN = 
-            Pattern.compile("^Hlog\\s*-\\s*(.+?)\\s*-\\s*(\\d{4})\\s+(\\d{2})\\.(csv|xls|xlsx|xlsm)$", Pattern.CASE_INSENSITIVE);
+            Pattern.compile("^Hlog\\s*-\\s*(.+?)\\s*-\\s*(\\d{4})\\s+(\\d{2})\\.(csv|xls|xlsx|xlsm)$", Pattern.CASE_INSENSITIVE); 
 
+    // CORREÇÃO: Prioridade para o formato americano (MM/dd/yyyy) presente nos registadores Hlog
     private static final DateTimeFormatter FLEXIBLE_DATE_TIME_FORMATTER = new DateTimeFormatterBuilder()
             .parseCaseInsensitive()
-            .appendPattern("[yyyy-MM-dd'T'HH:mm:ss][yyyy-MM-dd'T'HH:mm][yyyy-MM-dd HH:mm:ss][yyyy-MM-dd HH:mm][dd/MM/yyyy HH:mm:ss][dd/MM/yyyy HH:mm][MM/dd/yyyy HH:mm:ss][MM/dd/yyyy HH:mm][M/d/yyyy h:mm:ss a][M/d/yyyy h:mm a][dd.MM.yyyy HH:mm:ss][dd.MM.yyyy HH:mm][yyyy/MM/dd HH:mm:ss][yyyy/MM/dd HH:mm][dd-MM-yyyy HH:mm:ss][dd-MM-yyyy HH:mm]")
+            .appendPattern("[MM/dd/yyyy HH:mm:ss][MM/dd/yyyy HH:mm][M/d/yyyy h:mm:ss a][M/d/yyyy h:mm a]" +
+                           "[yyyy-MM-dd'T'HH:mm:ss][yyyy-MM-dd'T'HH:mm][yyyy-MM-dd HH:mm:ss][yyyy-MM-dd HH:mm]" +
+                           "[dd/MM/yyyy HH:mm:ss][dd/MM/yyyy HH:mm][dd.MM.yyyy HH:mm:ss][dd.MM.yyyy HH:mm]" +
+                           "[yyyy/MM/dd HH:mm:ss][yyyy/MM/dd HH:mm][dd-MM-yyyy HH:mm:ss][dd-MM-yyyy HH:mm]")
             .toFormatter(Locale.ENGLISH);
 
-    private static final DateTimeFormatter FLEXIBLE_DATE_FORMATTER = DateTimeFormatter.ofPattern("[yyyy-MM-dd][dd/MM/yyyy][MM/dd/yyyy][M/d/yyyy][dd.MM.yyyy][yyyy/MM/dd][dd-MM-yyyy]");
+    private static final DateTimeFormatter FLEXIBLE_DATE_FORMATTER = DateTimeFormatter.ofPattern(
+            "[MM/dd/yyyy][M/d/yyyy][yyyy-MM-dd][dd/MM/yyyy][dd.MM.yyyy][yyyy/MM/dd][dd-MM-yyyy]");
     
     private static final DateTimeFormatter TIME_FORMATTER = new DateTimeFormatterBuilder()
             .parseCaseInsensitive()
             .appendPattern("[hh:mm:ss a][h:mm:ss a][hh:mm a][h:mm a][HH:mm:ss][HH:mm][H:mm:ss][H:mm]")
-            .toFormatter(Locale.ENGLISH);
+            .toFormatter(Locale.ENGLISH); 
     
-    private static final List<String> INVALID_NAMING_FILES = Collections.synchronizedList(new ArrayList<>());
+    private static final List<String> INVALID_NAMING_FILES = Collections.synchronizedList(new ArrayList<>()); 
 
     public static List<String> getAndClearInvalidNamingFiles() {
-        List<String> copy = new ArrayList<>(INVALID_NAMING_FILES);
+        List<String> copy = new ArrayList<>(INVALID_NAMING_FILES); 
         INVALID_NAMING_FILES.clear(); 
         return copy;
     }
@@ -119,7 +124,7 @@ public class ImportServices {
             }
 
             if (!consumptionsToSave.isEmpty()) {
-                // ORDENAÇÃO CRESCENTE PELO CONSUMPTIONDATE (Data e Hora)
+                // Ordenação estrita por data e hora de consumo
                 consumptionsToSave.sort(Comparator.comparing(
                     ConsumptionEntity::getConsumptionDate, 
                     Comparator.nullsLast(Comparator.naturalOrder())
@@ -285,7 +290,7 @@ public class ImportServices {
         if (timeIdx != null) map.put("time", timeIdx);
 
         List<String> targetAliases = Arrays.asList(
-                "vb", "vbm3", "baaa", "vbm", "corvol", "volcorrigido","data6", 
+        		"contador2vb", "contador2vbm3", "contador2","vb", "vbm3", "baaa", "vbm", "corvol", "volcorrigido","data6",
                 "correctedvolume", "vol", "volume", "vbase", "volbase", "vcorrigido", "vcor", "vm"
         );
 
@@ -399,9 +404,10 @@ public class ImportServices {
                     LocalDate date;
                     if (p1 > 31) {
                         date = LocalDate.of(p1, p2, p3);
-                    } else if (p1 > 12) {
+                    } else if (p2 > 12) {
                         date = LocalDate.of(p3, p2, p1);
                     } else {
+                        // Assume padrão americano (Mês p1, Dia p2, Ano p3)
                         date = LocalDate.of(p3, p1, p2);
                     }
 

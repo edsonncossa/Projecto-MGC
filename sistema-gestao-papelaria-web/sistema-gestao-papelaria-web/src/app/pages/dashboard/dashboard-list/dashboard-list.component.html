@@ -122,24 +122,6 @@
 
         <div class="kpi-strip-divider"></div>
 
-        <!--div class="kpi-strip-item kpi-strip-input">
-          <nb-icon icon="pricetags-outline" pack="eva" status="basic"></nb-icon>
-          <div class="kpi-strip-info">
-            <span class="kpi-strip-label">Custo Estimado</span>
-            <strong class="kpi-strip-value">{{ custoEstimado | number:'1.0-0' }} <small>MT</small></strong>
-            <input
-              nbInput
-              type="number"
-              step="0.01"
-              [(ngModel)]="tarifaPorM3"
-              (ngModelChange)="onTarifaChange()"
-              placeholder="Tarifa MT/m³"
-              class="kpi-strip-mini-input" />
-          </div>
-        </div-->
-
-        <div class="kpi-strip-divider"></div>
-
         <div class="kpi-strip-item kpi-strip-input">
           <nb-icon icon="flag-outline" pack="eva" status="basic"></nb-icon>
           <div class="kpi-strip-info">
@@ -169,20 +151,17 @@
         <!-- Estação(ões) -->
         <div class="filter-control">
           <label class="label">Estação(ões)</label>
-          <nb-select
-            placeholder="Selecione a(s) Estação(ões)"
-            multiple
-            [(ngModel)]="selectedClientIds"
-            (selectedChange)="onClienteSelecionadoChange($event)"
-            fullWidth>
-            <nb-option value="ALL">🏢 Todas as Estações</nb-option>
-            <nb-option *ngFor="let c of listaClientes" [value]="c.id">
-              {{ c.firstName }}
-            </nb-option>
-          </nb-select>
-          <span class="filter-hint" *ngIf="isMultiplosClientesSelecionados">
-            A comparar {{ selectedClientIds.length }} estações
-          </span>
+  <nb-select
+  placeholder="Selecione a(s) Estação(ões)"
+  multiple
+  [ngModel]="selectedClientIds"
+  (ngModelChange)="onClienteSelecionadoChange($event)"
+  fullWidth>
+  <nb-option value="ALL">🏢 Todas as Estações</nb-option>
+  <nb-option *ngFor="let c of listaClientes" [value]="c.id">
+    {{ c.firstName }}
+  </nb-option>
+</nb-select>
         </div>
 
         <!-- Visão Temporal -->
@@ -232,6 +211,23 @@
           </div>
         </ng-container>
 
+        <!-- Período 1 e 2 (YEARCOMPARATION) -->
+        <ng-container *ngIf="viewMode === 'YEARCOMPARATION'">
+          <div class="filter-control filter-sm">
+            <label class="label">Ano 1</label>
+            <nb-select [(ngModel)]="selectedYear" (selectedChange)="recarregarDadosDashboard()" fullWidth placeholder="Ano 1">
+              <nb-option *ngFor="let y of anos" [value]="y">{{ y }}</nb-option>
+            </nb-select>
+          </div>
+
+          <div class="filter-control filter-sm">
+            <label class="label">Ano 2</label>
+            <nb-select [(ngModel)]="selectedYear2" (selectedChange)="recarregarDadosDashboard()" fullWidth placeholder="Ano 2">
+              <nb-option *ngFor="let y of anos" [value]="y">{{ y }}</nb-option>
+            </nb-select>
+          </div>
+        </ng-container>
+
         <!-- Mês (Exibido apenas em MONTHLY) -->
         <div class="filter-control filter-sm" *ngIf="viewMode === 'MONTHLY'">
           <label class="label">Mês</label>
@@ -261,7 +257,7 @@
           </div>
         </ng-container>
 
-        <!-- Botão Emitir Certificado -->
+        <!-- Botão Emitir Certificado 
         <div class="filter-control btn-certificate-wrapper" *ngIf="isFiltrosValidosForCertificado">
           <label class="label">&nbsp;</label>
           <div class="certificate-input-box">
@@ -274,7 +270,7 @@
               EMITIR CERTIFICADO
             </button>
           </div>
-        </div>
+        </div> -->
 
       </div>
 
@@ -309,62 +305,61 @@
   <div class="charts-row-split mb-4" *ngIf="isAllClientsSelected || isMultiplosClientesSelecionados">
     
     <!-- Distribuição % (Donut) -->
-    <!-- Distribuição % (Donut) -->
-<nb-card [nbSpinner]="spinnerVisible" nbSpinnerStatus="primary" class="card-donut-custom">
-  <nb-card-header class="card-header-flex">
-    <div class="header-title">
-      <nb-icon icon="pie-chart" pack="eva" status="success"></nb-icon>
-      <span>Distribuição Relativa por Estação (%)</span>
-    </div>
-  </nb-card-header>
-  
-  <nb-card-body class="chart-container-donut">
-    <div class="empty-state" *ngIf="!spinnerVisible && topConsumersData.length === 0">
-      <nb-icon icon="pie-chart-outline" pack="eva"></nb-icon>
-      <p>Sem dados para o período selecionado.</p>
-    </div>
+    <nb-card [nbSpinner]="spinnerVisible" nbSpinnerStatus="primary" class="card-donut-custom">
+      <nb-card-header class="card-header-flex">
+        <div class="header-title">
+          <nb-icon icon="pie-chart" pack="eva" status="success"></nb-icon>
+          <span>Distribuição Relativa por Estação (%)</span>
+        </div>
+      </nb-card-header>
+      
+      <nb-card-body class="chart-container-donut">
+        <div class="empty-state" *ngIf="!spinnerVisible && topConsumersData.length === 0">
+          <nb-icon icon="pie-chart-outline" pack="eva"></nb-icon>
+          <p>Sem dados para o período selecionado.</p>
+        </div>
 
-    <div class="donut-content-grid" *ngIf="topConsumersData.length > 0">
-      <!-- Lado Esquerdo: Gráfico Donut -->
-      <div class="donut-wrapper">
-        <ngx-charts-pie-chart
-          [scheme]="colorSchemeDonut"
-          [results]="topConsumersData"
-          [doughnut]="true"
-          [arcWidth]="0.25"
-          [legend]="false"
-          [labels]="false"
-          [activeEntries]="entradaAtiva"
-          [animations]="true"
-          (select)="onGraficoClicado($event)">
-        </ngx-charts-pie-chart>
-      </div>
-
-      <!-- Lado Direito: Lista de Estações Otimizada -->
-      <div class="client-progress-list">
-        <div
-          *ngFor="let item of topConsumersData; let i = index"
-          class="progress-item"
-          (mouseenter)="onHoverCliente(item.name)"
-          (mouseleave)="onHoverClienteFim()"
-          (click)="onGraficoClicado(item)">
-          
-          <div class="progress-info">
-            <div class="client-name-group">
-              <span class="color-indicator" [style.background-color]="colorSchemeDonut.domain[i]"></span>
-              <span class="client-name" [title]="item.name">{{ item.name }}</span>
-            </div>
-            <span class="client-percent">{{ (item.percent || 0) | number:'1.1-1' }}%</span>
+        <div class="donut-content-grid" *ngIf="topConsumersData.length > 0">
+          <!-- Lado Esquerdo: Gráfico Donut -->
+          <div class="donut-wrapper">
+            <ngx-charts-pie-chart
+              [scheme]="colorSchemeDonut"
+              [results]="topConsumersData"
+              [doughnut]="true"
+              [arcWidth]="0.25"
+              [legend]="false"
+              [labels]="false"
+              [activeEntries]="entradaAtiva"
+              [animations]="true"
+              (select)="onGraficoClicado($event)">
+            </ngx-charts-pie-chart>
           </div>
 
-          <div class="progress-bar-bg">
-            <div class="progress-bar-fill" [style.width.%]="item.percent || 0" [style.background-color]="colorSchemeDonut.domain[i]"></div>
+          <!-- Lado Direito: Lista de Estações Otimizada -->
+          <div class="client-progress-list">
+            <div
+              *ngFor="let item of topConsumersData; let i = index"
+              class="progress-item"
+              (mouseenter)="onHoverCliente(item.name)"
+              (mouseleave)="onHoverClienteFim()"
+              (click)="onGraficoClicado(item)">
+              
+              <div class="progress-info">
+                <div class="client-name-group">
+                  <span class="color-indicator" [style.background-color]="colorSchemeDonut.domain[i]"></span>
+                  <span class="client-name" [title]="item.name">{{ item.name }}</span>
+                </div>
+                <span class="client-percent">{{ (item.percent || 0) | number:'1.1-1' }}%</span>
+              </div>
+
+              <div class="progress-bar-bg">
+                <div class="progress-bar-fill" [style.width.%]="item.percent || 0" [style.background-color]="colorSchemeDonut.domain[i]"></div>
+              </div>
+            </div>
           </div>
         </div>
-      </div>
-    </div>
-  </nb-card-body>
-</nb-card>
+      </nb-card-body>
+    </nb-card>
 
     <!-- Volume Absoluto por Cliente (Barra Horizontal) -->
     <nb-card [nbSpinner]="spinnerVisible" nbSpinnerStatus="primary">
