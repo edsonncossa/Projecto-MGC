@@ -4,6 +4,8 @@ import static mz.com.sgp.mapper.ObjectMapper.parseObject;
 import static org.springframework.hateoas.server.mvc.WebMvcLinkBuilder.linkTo;
 
 import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Map;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -37,14 +39,14 @@ public class ConsumptionServices {
 
 	    @Transactional(readOnly = true)
 	    public PagedModel<EntityModel<ConsumptionDTO>> filterConsumptions(
-	            Long clientId, 
-	            LocalDateTime startDate, 
+	    		List<Long> clientIds,
+	    		LocalDateTime startDate, 
 	            LocalDateTime endDate, 
 	            String search, 
 	            Pageable pageable
 	    ) {
 	        Page<ConsumptionEntity> consumptions = consumptionRepository.filterConsumptions(
-	                clientId, 
+	        		clientIds, 
 	                startDate, 
 	                endDate, 
 	                search, 
@@ -52,7 +54,34 @@ public class ConsumptionServices {
 	                pageable
 	        );
 
-	        return buildPagedModel(pageable, consumptions, clientId, startDate, endDate, search);
+	        return buildPagedModel(pageable, consumptions, clientIds, startDate, endDate, search);
+	    }
+	    
+	    @Transactional(readOnly = true)
+	    public Map<String, Object> compareConsumptions(
+	            List<Long> clientIds,
+	            LocalDateTime startDate1, 
+	            LocalDateTime endDate1,
+	            LocalDateTime startDate2, 
+	            LocalDateTime endDate2,
+	            String search, 
+	            Pageable pageable
+	    ) {
+	        logger.info("Executando comparação de consumos entre os períodos");
+
+	        Page<ConsumptionEntity> period1 = consumptionRepository.filterConsumptions(
+	                clientIds, startDate1, endDate1, search, EntityState.ACTIVE, pageable
+	        );
+
+	        Page<ConsumptionEntity> period2 = consumptionRepository.filterConsumptions(
+	                clientIds, startDate2, endDate2, search, EntityState.ACTIVE, pageable
+	        );
+
+	        Map<String, Object> result = new java.util.HashMap<>();
+	        result.put("period1", buildPagedModel(pageable, period1, clientIds, startDate1, endDate1, search));
+	        result.put("period2", buildPagedModel(pageable, period2, clientIds, startDate2, endDate2, search));
+
+	        return result;
 	    }
 
 	    @Transactional(readOnly = true)
@@ -111,7 +140,7 @@ public class ConsumptionServices {
 	    private PagedModel<EntityModel<ConsumptionDTO>> buildPagedModel(
 	            Pageable pageable, 
 	            Page<ConsumptionEntity> consumptionsEntity,
-	            Long clientId, 
+	            List<Long> clientIds,
 	            LocalDateTime startDate, 
 	            LocalDateTime endDate, 
 	            String search
@@ -129,6 +158,4 @@ public class ConsumptionServices {
 	        return assembler.toModel(pageDTO);
 	    }
 		
-	}
-
-
+}

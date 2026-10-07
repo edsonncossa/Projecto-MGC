@@ -1,11 +1,14 @@
 package mz.com.sgp.controllers;
 
 import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Map;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.hateoas.EntityModel;
 import org.springframework.hateoas.PagedModel;
 import org.springframework.http.HttpStatus;
@@ -35,9 +38,9 @@ public class ConsumptionController implements ConsumptionControllerDocs {
     @Override
     @GetMapping(produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<PagedModel<EntityModel<ConsumptionDTO>>> filterConsumptions(
-            @RequestParam(value = "clientId", required = false) Long clientId,
-            @RequestParam(value = "startDate", required = false) LocalDateTime startDate,
-            @RequestParam(value = "endDate", required = false) LocalDateTime endDate,
+            @RequestParam(value = "clientIds", required = false) List<Long> clientIds,
+            @RequestParam(value = "startDate", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime startDate,
+            @RequestParam(value = "endDate", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime endDate,
             @RequestParam(value = "search", required = false, defaultValue = "") String search,
             @RequestParam(value = "page", defaultValue = "0") Integer page,
             @RequestParam(value = "size", defaultValue = "12") Integer size,
@@ -50,7 +53,34 @@ public class ConsumptionController implements ConsumptionControllerDocs {
 
         Pageable pageable = PageRequest.of(page, size, Sort.by(sortDirection, sortField));
 
-        return ResponseEntity.ok(consumptionServices.filterConsumptions(clientId, startDate, endDate, search, pageable));
+        return ResponseEntity.ok(consumptionServices.filterConsumptions(clientIds, startDate, endDate, search, pageable));
+    }
+    
+    @Override
+    @GetMapping(value = "/compare", produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<Map<String, Object>> compareConsumptions(
+            @RequestParam(value = "clientIds", required = false) List<Long> clientIds,
+            @RequestParam(value = "startDate1") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime startDate1,
+            @RequestParam(value = "endDate1") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime endDate1,
+            @RequestParam(value = "startDate2") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime startDate2,
+            @RequestParam(value = "endDate2") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime endDate2,
+            @RequestParam(value = "search", required = false, defaultValue = "") String search,
+            @RequestParam(value = "page", defaultValue = "0") Integer page,
+            @RequestParam(value = "size", defaultValue = "1000") Integer size,
+            @RequestParam(value = "direction", defaultValue = "asc") String direction,
+            @RequestParam(value = "sortField", defaultValue = "consumptionDate") String sortField
+    ) {
+        var sortDirection = "asc".equalsIgnoreCase(direction)
+                ? Sort.Direction.ASC
+                : Sort.Direction.DESC;
+
+        Pageable pageable = PageRequest.of(page, size, Sort.by(sortDirection, sortField));
+
+        Map<String, Object> comparisonData = consumptionServices.compareConsumptions(
+                clientIds, startDate1, endDate1, startDate2, endDate2, search, pageable
+        );
+
+        return ResponseEntity.ok(comparisonData);
     }
 
     @Override

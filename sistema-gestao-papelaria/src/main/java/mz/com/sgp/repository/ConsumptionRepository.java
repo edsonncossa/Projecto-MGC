@@ -1,6 +1,7 @@
 package mz.com.sgp.repository;
 
 import java.time.LocalDateTime;
+import java.util.List;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -16,14 +17,14 @@ public interface ConsumptionRepository extends JpaRepository<ConsumptionEntity, 
 
     @Query("SELECT c FROM ConsumptionEntity c " +
             "LEFT JOIN c.client cl " +
-            "WHERE (:clientId IS NULL OR c.clientId = :clientId) AND " +
+            "WHERE (:clientIds IS NULL OR c.clientId IN :clientIds) AND " +
             "(:startDate IS NULL OR c.consumptionDate >= :startDate) AND " +
             "(:endDate IS NULL OR c.consumptionDate <= :endDate) AND " +
             "(:search IS NULL OR :search = '' OR LOWER(cl.firstName) LIKE LOWER(CONCAT('%', :search, '%'))) AND " +
             "c.status = :status " +
             "ORDER BY c.consumptionDate ASC")
     Page<ConsumptionEntity> filterConsumptions(
-            @Param("clientId") Long clientId,
+            @Param("clientIds") List<Long> clientIds,
             @Param("startDate") LocalDateTime startDate,
             @Param("endDate") LocalDateTime endDate,
             @Param("search") String search,
@@ -31,5 +32,4 @@ public interface ConsumptionRepository extends JpaRepository<ConsumptionEntity, 
             Pageable pageable);
     
     long countByStatus(EntityState status);
-
 }

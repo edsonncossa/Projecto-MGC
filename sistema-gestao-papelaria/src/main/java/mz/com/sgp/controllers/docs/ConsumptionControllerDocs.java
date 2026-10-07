@@ -1,6 +1,8 @@
 package mz.com.sgp.controllers.docs;
 
 import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Map;
 
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.hateoas.EntityModel;
@@ -24,7 +26,7 @@ import mz.com.sgp.data.dto.ConsumptionDTO;
 public interface ConsumptionControllerDocs {
 
     @Operation(summary = "Listar e Filtrar Consumos",
-            description = "Obtém a lista paginada de consumos podendo filtrar por Cliente, intervalo de datas e termo de pesquisa.",
+            description = "Obtém a lista paginada de consumos podendo filtrar por uma lista de IDs de Clientes/Estações, intervalo de datas e termo de pesquisa.",
             responses = {
                     @ApiResponse(
                             description = "Success",
@@ -39,8 +41,8 @@ public interface ConsumptionControllerDocs {
             }
     )
     ResponseEntity<PagedModel<EntityModel<ConsumptionDTO>>> filterConsumptions(
-            @Parameter(description = "ID do Cliente para filtrar os consumos")
-            @RequestParam(value = "clientId", required = false) Long clientId,
+            @Parameter(description = "Lista de IDs de Clientes/Estações para filtrar (ex: 1,2,3)")
+            @RequestParam(value = "clientIds", required = false) List<Long> clientIds,
 
             @Parameter(description = "Data inicial do intervalo (Formato: YYYY-MM-DDTHH:mm:ss)")
             @RequestParam(value = "startDate", required = false) 
@@ -63,6 +65,28 @@ public interface ConsumptionControllerDocs {
             @RequestParam(value = "direction", defaultValue = "desc") String direction,
 
             @Parameter(description = "Campo utilizado para ordenação")
+            @RequestParam(value = "sortField", defaultValue = "consumptionDate") String sortField
+    );
+    
+    @Operation(summary = "Comparar Consumos por Períodos",
+            description = "Obtém duas listas paginadas de consumos para comparação entre dois intervalos de datas distintos.",
+            responses = {
+                    @ApiResponse(description = "Success", responseCode = "200", content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE)),
+                    @ApiResponse(description = "Bad Request", responseCode = "400", content = @Content),
+                    @ApiResponse(description = "Unauthorized", responseCode = "401", content = @Content),
+                    @ApiResponse(description = "Internal Server Error", responseCode = "500", content = @Content)
+            }
+    )
+    ResponseEntity<Map<String, Object>> compareConsumptions(
+            @RequestParam(value = "clientIds", required = false) List<Long> clientIds,
+            @RequestParam(value = "startDate1") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime startDate1,
+            @RequestParam(value = "endDate1") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime endDate1,
+            @RequestParam(value = "startDate2") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime startDate2,
+            @RequestParam(value = "endDate2") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime endDate2,
+            @RequestParam(value = "search", required = false, defaultValue = "") String search,
+            @RequestParam(value = "page", defaultValue = "0") Integer page,
+            @RequestParam(value = "size", defaultValue = "1000") Integer size,
+            @RequestParam(value = "direction", defaultValue = "asc") String direction,
             @RequestParam(value = "sortField", defaultValue = "consumptionDate") String sortField
     );
 

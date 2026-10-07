@@ -4,15 +4,24 @@
   <div class="kpi-grid mb-4">
     
     <!-- Volume Total m³ -->
-    <div class="card-kpi kpi-blue">
-      <div class="kpi-info">
-        <span class="kpi-title">Consumo Real Total (m³)</span>
-        <h3 class="kpi-value">{{ totalVolumeConsumido | number:'1.2-2' }} <small>m³</small></h3>
-      </div>
-      <div class="kpi-icon">
-        <nb-icon icon="droplet" pack="eva"></nb-icon>
+<!-- Volume Total m³ -->
+<div class="card-kpi kpi-blue">
+  <div class="kpi-info">
+    <span class="kpi-title">Consumo Real Total (m³)</span>
+    <h3 class="kpi-value">{{ totalVolumeConsumido | number:'1.2-2' }} <small>m³</small></h3>
+
+    <!-- Breakdown por estação (só quando há múltiplas) -->
+    <div class="kpi-breakdown" *ngIf="volumePorCliente.length > 1">
+      <div class="kpi-breakdown-item" *ngFor="let item of volumePorCliente">
+        <span class="kpi-breakdown-name" [title]="item.name">{{ item.name }}</span>
+        <span class="kpi-breakdown-value">{{ item.value | number:'1.2-2' }} m³</span>
       </div>
     </div>
+  </div>
+  <div class="kpi-icon">
+    <nb-icon icon="droplet" pack="eva"></nb-icon>
+  </div>
+</div>
 
     <!-- Energia Total GJ -->
     <div class="card-kpi kpi-orange">
@@ -180,7 +189,7 @@
           </nb-select>
         </div>
 
-        <!-- Período 1 e 2 (MONTHCOMPARATION) -->
+<!-- Período 1 e 2 (MONTHCOMPARATION) -->
         <ng-container *ngIf="viewMode === 'MONTHCOMPARATION'">
           <div class="filter-control filter-sm">
             <label class="label">Mês 1</label>
@@ -377,7 +386,7 @@
 
         <div class="chart-box-bar" *ngIf="topConsumersData.length > 0">
           <ngx-charts-bar-horizontal
-            [scheme]="colorScheme"
+            [scheme]="colorSchemeDonut"
             [results]="topConsumersData"
             [xAxis]="true"
             [yAxis]="true"
@@ -421,7 +430,7 @@
 
         <div class="chart-box" *ngIf="areaChartDataM3[0]?.series?.length > 0">
           <ngx-charts-line-chart
-            [scheme]="colorScheme"
+            [scheme]="colorSchemeDonut"
             [results]="areaChartDataM3"
             [xAxis]="true"
             [yAxis]="true"
@@ -460,7 +469,7 @@
 
         <div class="chart-box" *ngIf="areaChartDataGJ[0]?.series?.length > 0">
           <ngx-charts-line-chart
-            [scheme]="colorSchemeGJ"
+            [scheme]="colorSchemeDonut"
             [results]="areaChartDataGJ"
             [xAxis]="true"
             [yAxis]="true"
