@@ -579,7 +579,11 @@ private compararLabelsPeriodo(a: string, b: string): number {
   return a.localeCompare(b);
 }
 
-  private processarComparacaoMensal(consumptions1: any[], consumptions2: any[]): void {
+private processarComparacaoMensal(res1: any, res2: any): void {
+    // Extração segura suportando HATEOAS (_embedded.consumptionDTOList), .content ou arrays diretos
+    const consumptions1 = res1?._embedded?.consumptionDTOList || res1?._embedded?.consumptions || res1?.content || (Array.isArray(res1) ? res1 : []);
+    const consumptions2 = res2?._embedded?.consumptionDTOList || res2?._embedded?.consumptions || res2?.content || (Array.isArray(res2) ? res2 : []);
+
     const labelPeriodo1 = `${this.meses[this.selectedMonth!]} / ${this.selectedYear}`;
     const labelPeriodo2 = `${this.meses[this.selectedMonth2!]} / ${this.selectedYear2}`;
 
@@ -592,6 +596,7 @@ private compararLabelsPeriodo(a: string, b: string): number {
     this.totalVolumeConsumido = Number((vol1 + vol2).toFixed(2));
     this.totalRegistos = consumptions1.length + consumptions2.length;
 
+    // Atribuição para o gráfico de linhas (múltiplas séries comparativas)
     this.areaChartDataM3 = [
       { name: labelPeriodo1, series: series1 },
       { name: labelPeriodo2, series: series2 }
@@ -647,7 +652,7 @@ private compararLabelsPeriodo(a: string, b: string): number {
     this.recalcularEnergiaComNovoEnergyContent();
   }
 
-  private extrairSeriesPorDiaDoMes(consumptions: any[]): { name: string; value: number }[] {
+private extrairSeriesPorDiaDoMes(consumptions: any[]): { name: string; value: number }[] {
     if (!Array.isArray(consumptions) || consumptions.length === 0) return [];
 
     const consumptionsOrdenados = [...consumptions].sort((a, b) => {
@@ -688,16 +693,21 @@ private compararLabelsPeriodo(a: string, b: string): number {
       if (c.consumptionDate) {
         const dateVal = new Date(c.consumptionDate);
         if (!isNaN(dateVal.getTime())) {
+          // Normaliza a chave para o formato "Dia 01", "Dia 02", etc., permitindo a sobreposição temporal perfeita no gráfico
           const dayKey = `Dia ${String(dateVal.getDate()).padStart(2, '0')}`;
           chartMap.set(dayKey, (chartMap.get(dayKey) || 0) + deltaVolume);
         }
       }
     }
 
-    return Array.from(chartMap.entries()).map(([name, value]) => ({
-      name,
-      value: Number(value.toFixed(2))
-    }));
+    // Retorna ordenado pelo número do dia
+    return Array.from(chartMap.entries())
+      .map(([name, value]) => ({ name, value: Number(value.toFixed(2)) }))
+      .sort((a, b) => {
+        const diaA = parseInt(a.name.replace('Dia ', ''), 10);
+        const diaB = parseInt(b.name.replace('Dia ', ''), 10);
+        return diaA - diaB;
+      });
   }
 
   private extrairSeriesPorMesDoAno(consumptions: any[]): { name: string; value: number }[] {
