@@ -211,6 +211,37 @@
   }
 }
 
+/* Ajuste unificado para os inputs de data ficarem idênticos aos nb-select */
+input[type="date"].full-width-input {
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  height: 40px; /* Altura padrão dos nb-select no Nebular */
+  padding: 0.375rem 0.75rem;
+  font-size: 0.9375rem;
+  line-height: 1.5;
+  border-radius: 0.375rem;
+  border: 1px solid #edf1f7;
+  background-color: #f7f9fc;
+  color: #222b45;
+  box-sizing: border-box;
+  width: 100%;
+  font-family: inherit;
+  transition: background-color 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+
+  &:hover {
+    border-color: #c5cee0;
+    background-color: #edf1f7;
+  }
+
+  &:focus {
+    background-color: #ffffff;
+    border-color: #3366ff; /* Cor primária do Nebular */
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(51, 102, 255, 0.3);
+  }
+}
+
 /* ===== 2. PAINEL DE FILTROS (OTIMIZADO PARA CABEREM TODOS NA MESMA LINHA) ===== */
 .filter-panel {
   border-radius: 12px;

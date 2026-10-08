@@ -253,16 +253,28 @@
           </nb-select>
         </div>
 
-        <!-- Data Início / Fim (Exibido apenas em RANGE) -->
+<!-- Data Início / Fim (Exibido apenas em RANGE) -->
         <ng-container *ngIf="viewMode === 'RANGE'">
           <div class="filter-control">
             <label class="label">Data Início</label>
-            <input nbInput type="date" [(ngModel)]="startDate" (change)="recarregarDadosDashboard()" class="full-width-input" />
+            <input 
+              nbInput 
+              fullWidth 
+              type="date" 
+              [(ngModel)]="startDate" 
+              (change)="recarregarDadosDashboard()" 
+              class="full-width-input" />
           </div>
 
           <div class="filter-control">
             <label class="label">Data Fim</label>
-            <input nbInput type="date" [(ngModel)]="endDate" (change)="recarregarDadosDashboard()" class="full-width-input" />
+            <input 
+              nbInput 
+              fullWidth 
+              type="date" 
+              [(ngModel)]="endDate" 
+              (change)="recarregarDadosDashboard()" 
+              class="full-width-input" />
           </div>
         </ng-container>
 

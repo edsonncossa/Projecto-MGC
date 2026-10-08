@@ -5,9 +5,10 @@
 @include nb-install-component() {
   width: 100%;
   display: flex;
-  justify-content: space-between;
   align-items: center;
-
+  text-align: center;
+  justify-content: center;
+gap: 1.5rem;
   .socials {
     font-size: 2rem;
 
@@ -23,6 +24,8 @@
   }
 
   @include media-breakpoint-down(is) {
+    flex-direction: column;
+    gap: 0.5rem;
     .socials {
       font-size: 1.5rem;
     }

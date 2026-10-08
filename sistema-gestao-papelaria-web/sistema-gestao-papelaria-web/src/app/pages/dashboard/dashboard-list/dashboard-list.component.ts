@@ -313,11 +313,16 @@ if (this.viewMode === 'MONTHCOMPARATION') {
     }
 
     // COMPARAÇÃO ANUAL
-    if (this.viewMode === 'YEARCOMPARATION') {
-      const start1 = this.formatDateTimeToIso(new Date(this.selectedYear!, 0, 1, 0, 0, 0));
-      const end1 = this.formatDateTimeToIso(new Date(this.selectedYear!, 11, 31, 23, 59, 59));
-      const start2 = this.formatDateTimeToIso(new Date(this.selectedYear2!, 0, 1, 0, 0, 0));
-      const end2 = this.formatDateTimeToIso(new Date(this.selectedYear2!, 11, 31, 23, 59, 59));
+ if (this.viewMode === 'YEARCOMPARATION') {
+      if (this.selectedYear === null || this.selectedYear2 === null) {
+        return;
+      }
+
+      const start1 = this.formatDateTimeToIso(new Date(Number(this.selectedYear), 0, 1, 0, 0, 0));
+      const end1 = this.formatDateTimeToIso(new Date(Number(this.selectedYear), 11, 31, 23, 59, 59));
+      
+      const start2 = this.formatDateTimeToIso(new Date(Number(this.selectedYear2), 0, 1, 0, 0, 0));
+      const end2 = this.formatDateTimeToIso(new Date(Number(this.selectedYear2), 11, 31, 23, 59, 59));
 
       forkJoin({
         p1: this.consumptionService.filterConsumptions(0, 10000, 'consumptionDate', 'asc', {
@@ -333,9 +338,7 @@ if (this.viewMode === 'MONTHCOMPARATION') {
       }))
       .subscribe({
         next: (res: any) => {
-          const c1 = res.p1?._embedded?.consumptionDTOList || res.p1?.content || [];
-          const c2 = res.p2?._embedded?.consumptionDTOList || res.p2?.content || [];
-          this.processarComparacaoAnual(c1, c2);
+          this.processarComparacaoAnual(res.p1, res.p2);
         },
         error: (err) => {
           console.error('Erro ao comparar anos:', err);
@@ -618,7 +621,11 @@ private processarComparacaoMensal(res1: any, res2: any): void {
     this.recalcularEnergiaComNovoEnergyContent();
   }
 
-  private processarComparacaoAnual(consumptions1: any[], consumptions2: any[]): void {
+private processarComparacaoAnual(res1: any, res2: any): void {
+    // Extração segura suportando HATEOAS (_embedded.consumptionDTOList), .content ou arrays diretos
+    const consumptions1 = res1?._embedded?.consumptionDTOList || res1?._embedded?.consumptions || res1?.content || (Array.isArray(res1) ? res1 : []);
+    const consumptions2 = res2?._embedded?.consumptionDTOList || res2?._embedded?.consumptions || res2?.content || (Array.isArray(res2) ? res2 : []);
+
     const labelAno1 = `Ano ${this.selectedYear}`;
     const labelAno2 = `Ano ${this.selectedYear2}`;
 
@@ -631,6 +638,7 @@ private processarComparacaoMensal(res1: any, res2: any): void {
     this.totalVolumeConsumido = Number((vol1 + vol2).toFixed(2));
     this.totalRegistos = consumptions1.length + consumptions2.length;
 
+    // Atribuição para o gráfico de linhas (múltiplas séries anuais comparativas)
     this.areaChartDataM3 = [
       { name: labelAno1, series: series1 },
       { name: labelAno2, series: series2 }
@@ -710,7 +718,7 @@ private extrairSeriesPorDiaDoMes(consumptions: any[]): { name: string; value: nu
       });
   }
 
-  private extrairSeriesPorMesDoAno(consumptions: any[]): { name: string; value: number }[] {
+private extrairSeriesPorMesDoAno(consumptions: any[]): { name: string; value: number }[] {
     if (!Array.isArray(consumptions) || consumptions.length === 0) return [];
 
     const consumptionsOrdenados = [...consumptions].sort((a, b) => {
@@ -751,16 +759,20 @@ private extrairSeriesPorDiaDoMes(consumptions: any[]): { name: string; value: nu
       if (c.consumptionDate) {
         const dateVal = new Date(c.consumptionDate);
         if (!isNaN(dateVal.getTime())) {
+          // Utiliza o nome do mês como chave para alinhar Janeiro com Janeiro, Fevereiro com Fevereiro, etc.
           const monthKey = this.meses[dateVal.getMonth()];
           chartMap.set(monthKey, (chartMap.get(monthKey) || 0) + deltaVolume);
         }
       }
     }
 
-    return Array.from(chartMap.entries()).map(([name, value]) => ({
-      name,
-      value: Number(value.toFixed(2))
-    }));
+    // Retorna ordenado cronologicamente pelos meses (Janeiro a Dezembro)
+    return this.meses
+      .filter(mes => chartMap.has(mes))
+      .map(mes => ({
+        name: mes,
+        value: Number(chartMap.get(mes)!.toFixed(2))
+      }));
   }
 
   private formatDateTimeToIso(d: Date): string {
