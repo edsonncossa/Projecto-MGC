@@ -87,7 +87,7 @@ export class updateCorrectorComponent implements OnInit { // Nome corrigido para
       next: (res) => {
         this.listaClientes = res._embedded?.clients ?? [];
       },
-      error: (err) => console.error('Erro ao carregar clientes:', err)
+      error: (err) => console.error('Erro ao carregar estações:', err)
     });
   }
 

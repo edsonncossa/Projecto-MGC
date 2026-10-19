@@ -75,6 +75,7 @@ export class DashboardListComponent implements OnInit {
   mediaConsumoDiarioM3: number = 0;   
   mediaConsumoDiarioGJ: number = 0;   
   totalClientes: number = 0;
+  selectedCategories: (string)[] = ['ALL'];
 
   colorScheme: any = { domain: ['#3366ff', '#00d68f', '#ffaa00', '#0095ff', '#a16eff'] };
   colorSchemeGJ: any = { domain: ['#ffaa00', '#ff3d71', '#3366ff', '#00d68f', '#a16eff'] };
@@ -137,6 +138,37 @@ export class DashboardListComponent implements OnInit {
     this.startDate = null;
     this.endDate = null;
     this.monthlyEnergyContent = new Array(12).fill(null);
+    this.cdr.markForCheck();
+  }
+
+  onCategoriaSelecionadaChange(categoriasSelecionadas: string[] | string | null): void {
+    let cats: string[] = Array.isArray(categoriasSelecionadas)
+      ? categoriasSelecionadas
+      : (categoriasSelecionadas !== null && categoriasSelecionadas !== undefined ? [categoriasSelecionadas] : []);
+
+    if (cats.length === 0) {
+      this.selectedCategories = ['ALL'];
+    } else {
+      const tinhaAllAntes = this.selectedCategories.includes('ALL');
+      const temAllAgora = cats.includes('ALL');
+
+      if (temAllAgora && !tinhaAllAntes) {
+        this.selectedCategories = ['ALL'];
+      } else if (temAllAgora && tinhaAllAntes && cats.length > 1) {
+        this.selectedCategories = cats.filter(c => c !== 'ALL');
+      } else if (temAllAgora && cats.length === 1) {
+        this.selectedCategories = ['ALL'];
+      } else {
+        this.selectedCategories = cats;
+      }
+    }
+
+    if (this.isFiltrosCompletos()) {
+      this.recarregarDadosDashboard();
+    } else {
+      this.resetMetrics();
+    }
+    
     this.cdr.markForCheck();
   }
 
@@ -236,9 +268,57 @@ onClienteSelecionadoChange(idsSelecionados: (number | string)[] | number | strin
       : [];
   }
 
-isFiltrosCompletos(): boolean {
-    if (!this.selectedClientIds || this.selectedClientIds.length === 0 || !this.viewMode) return false;
+  /**
+ * Retorna a lista de IDs de clientes correspondentes às categorias selecionadas.
+ */
+getClientIdsPorCategoria(): number[] {
+  if (!this.listaClientes || this.listaClientes.length === 0) return [];
 
+  const incluiEntradas = this.selectedCategories.includes('ALL') || this.selectedCategories.includes('ENTRADAS');
+  const incluiSaidas = this.selectedCategories.includes('ALL') || this.selectedCategories.includes('SAIDAS');
+
+  // Se ambas estão selecionadas (ou ALL), retorna todos os IDs
+  if (incluiEntradas && incluiSaidas) {
+    return this.listaClientes
+      .map(c => Number(c.id))
+      .filter(id => !isNaN(id));
+  }
+
+  return this.listaClientes
+    .filter(c => {
+      const eEntrada = this.isClienteEntrada(c);
+      if (incluiEntradas && eEntrada) return true;
+      if (incluiSaidas && !eEntrada) return true;
+      return false;
+    })
+    .map(c => Number(c.id))
+    .filter(id => !isNaN(id));
+}
+
+get listaClientesFiltradaPorCategoria(): Client[] {
+    if (!this.listaClientes) return [];
+
+    const incluiEntradas = this.selectedCategories.includes('ALL') || this.selectedCategories.includes('ENTRADAS');
+    const incluiSaidas = this.selectedCategories.includes('ALL') || this.selectedCategories.includes('SAIDAS');
+
+    if (incluiEntradas && incluiSaidas) {
+      return this.listaClientes;
+    }
+
+    return this.listaClientes.filter(c => {
+      const eEntrada = this.isClienteEntrada(c);
+      return (incluiEntradas && eEntrada) || (incluiSaidas && !eEntrada);
+    });
+  }
+
+isFiltrosCompletos(): boolean {
+    // Validação base: Estações e Categorias preenchidas, e Visão Temporal selecionada
+    const hasValidClients = this.selectedClientIds && this.selectedClientIds.length > 0;
+    const hasValidCategories = this.selectedCategories && this.selectedCategories.length > 0;
+    
+    if (!hasValidClients || !hasValidCategories || !this.viewMode) return false;
+
+    // Validação específica por tipo de Visão Temporal
     switch (this.viewMode) {
       case 'MONTHLY':
         return this.selectedMonth !== null && this.selectedYear !== null;
@@ -258,22 +338,43 @@ isFiltrosCompletos(): boolean {
     }
   }
 
+  /**
+ * Determina se um cliente pertence à categoria ENTRADAS.
+ * Estações como PRS1, PRS1 (M1), PRS1 (M2) são consideradas ENTRADAS.
+ */
+isClienteEntrada(cliente: Client | undefined | null): boolean {
+    if (!cliente || !cliente.firstName) return false;
+    const nomeTrim = cliente.firstName.trim().toUpperCase();
+    return (
+    nomeTrim === 'PRS1' || nomeTrim.startsWith('PRS1 ') ||
+    nomeTrim === 'HPCMS3' || nomeTrim.startsWith('HPCMS3 ')
+  );
+  }
+
 recarregarDadosDashboard(): void {
-    if (!this.selectedClientIds || this.selectedClientIds.length === 0 || !this.isFiltrosCompletos()) {
-      this.resetMetrics();
-      return;
-    }
+if (!this.selectedClientIds || this.selectedClientIds.length === 0 || !this.isFiltrosCompletos()) {
+    this.resetMetrics();
+    return;
+  }
 
-    const isAll = this.isAllClientsSelected;
-    const clientIdsNumericos = this.getClientIdsSelecionados();
+  const clientIdsCategorizados = this.getClientIdsPorCategoria();
+  const isAll = this.isAllClientsSelected;
+  const clientIdsNumericos = this.getClientIdsSelecionados();
 
-    // Se 'ALL' estiver selecionado, passa undefined (para buscar todas as estações)
-    const clientIdsParam: number[] | undefined = (isAll || clientIdsNumericos.length === 0)
-      ? undefined
-      : clientIdsNumericos;
+  // Filtrar os IDs selecionados manualmente com base nas categorias ativas
+  let clientIdsParam: number[] | undefined;
 
-    this.spinnerVisible = true;
-    this.cdr.markForCheck();
+  if (isAll) {
+    // Se "Todas as Estações" estiver selecionado, usamos todos os IDs das categorias filtradas
+    clientIdsParam = clientIdsCategorizados.length > 0 ? clientIdsCategorizados : undefined;
+  } else {
+    // Intersecção entre os clientes selecionados manualmente e os permitidos pela categoria
+    const filtrados = clientIdsNumericos.filter(id => clientIdsCategorizados.includes(id));
+    clientIdsParam = filtrados.length > 0 ? filtrados : [-1]; // [-1] impede trazer todos se nenhum bater
+  }
+
+  this.spinnerVisible = true;
+  this.cdr.markForCheck();
 
 // COMPARAÇÃO MENSAL
 if (this.viewMode === 'MONTHCOMPARATION') {
@@ -396,16 +497,20 @@ private processarDadosConsumo(consumptions: any[]): void {
     return;
   }
 
+  // 1. Primeiro ordenamos e definimos as variáveis necessárias
   const consumptionsOrdenados = [...consumptions].sort((a, b) => {
     return new Date(a.consumptionDate).getTime() - new Date(b.consumptionDate).getTime();
   });
+  const len = consumptionsOrdenados.length;
+
+  const clientIdsPermitidos = new Set(this.getClientIdsPorCategoria());
 
   // Mapa: nomeCliente -> (dateKey -> volume)
   const perClientChartMap = new Map<string, Map<string, number>>();
   const previousReadingMap = new Map<number, number>();
   const clientTotalVolumeMap = new Map<string, number>();
 
-  const len = consumptionsOrdenados.length;
+  // 2. Agora o ciclo for corre sem erros
   for (let i = 0; i < len; i++) {
     const c = consumptionsOrdenados[i];
     if (!c) continue;
@@ -415,6 +520,12 @@ private processarDadosConsumo(consumptions: any[]): void {
     }
 
     const clientIdNum = Number(c.clientId ?? c.client?.id ?? c.client_id ?? 0);
+
+    // Se o cliente não pertencer à categoria selecionada, ignora o registo
+    if (clientIdsPermitidos.size > 0 && !clientIdsPermitidos.has(clientIdNum)) {
+      continue;
+    }
+
     const rawReading = Number(c.volume ?? c.reading ?? c.correctedVolume ?? 0);
     const cliente = this.listaClientes.find(cli => Number(cli.id) === clientIdNum);
     const clientName = c.client?.firstName || cliente?.firstName || `Cliente #${clientIdNum}`;
@@ -468,10 +579,9 @@ private processarDadosConsumo(consumptions: any[]): void {
     topConsumers.push({ name: clientName, value: vbCliente });
   });
 
-  // Logo após: clientTotalVolumeMap.forEach(...) que preenche topConsumers
-this.volumePorCliente = Array.from(clientTotalVolumeMap.entries())
-  .map(([name, value]) => ({ name, value: Number(value.toFixed(2)) }))
-  .sort((a, b) => b.value - a.value);
+  this.volumePorCliente = Array.from(clientTotalVolumeMap.entries())
+    .map(([name, value]) => ({ name, value: Number(value.toFixed(2)) }))
+    .sort((a, b) => b.value - a.value);
 
   this.totalVolumeConsumido = Number(totalVbM3.toFixed(2));
   this.totalRegistos = len;
@@ -494,7 +604,7 @@ this.volumePorCliente = Array.from(clientTotalVolumeMap.entries())
   topConsumers.sort((a, b) => b.value - a.value);
   this.topConsumersData = topConsumers.slice(0, 5);
 
-  // Pico / mínimo — usar todas as séries
+  // Pico / mínimo
   const datasetsParaPico = this.areaChartDataM3.map(ds => ({
     nome: this.areaChartDataM3.length > 1 ? ds.name : '',
     pontos: ds.series

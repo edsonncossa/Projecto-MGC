@@ -5,31 +5,18 @@ export const MENU_ITEMS: NbMenuItem[] = [
     title: 'Dashboard',
     icon: 'home-outline',
     home: true,
-    children: [
-         {
-        title: 'Entradas',
-        icon: 'trending-up-outline',   
-        link: '/dashboard/entradas',   
-      },
-      {
-        title: 'Saídas',
-        icon: 'trending-down-outline', 
-        link: '/dashboard',           
-      },
-   
-    ],
   },
   {
     title: 'GESTÃO DE CONSUMO',
     group: true,
   },
   {
-    title: 'Clientes',
+    title: 'Estações',
     icon: 'people-outline',
     link: '/client',
   },
     {
-    title: 'LOCALIZAÇÃO DOS CLIENTES',
+    title: 'LOCALIZAÇÃO DAS ESTAÇÕES  ',
     group: true,
   },
   {

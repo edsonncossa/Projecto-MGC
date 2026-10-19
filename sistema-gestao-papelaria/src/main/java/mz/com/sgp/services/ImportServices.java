@@ -47,22 +47,22 @@ public class ImportServices {
     private static final Pattern STRICT_FILE_NAME_PATTERN = 
             Pattern.compile("^Hlog\\s*-\\s*(.+?)\\s*-\\s*(\\d{4})\\s+(\\d{2})\\.(csv|xls|xlsx|xlsm)$", Pattern.CASE_INSENSITIVE); 
 
-    // CORREÇÃO: Prioridade para o formato americano (MM/dd/yyyy) presente nos registadores Hlog
     private static final DateTimeFormatter FLEXIBLE_DATE_TIME_FORMATTER = new DateTimeFormatterBuilder()
             .parseCaseInsensitive()
-            .appendPattern("[MM/dd/yyyy HH:mm:ss][MM/dd/yyyy HH:mm][M/d/yyyy h:mm:ss a][M/d/yyyy h:mm a]" +
-                           "[yyyy-MM-dd'T'HH:mm:ss][yyyy-MM-dd'T'HH:mm][yyyy-MM-dd HH:mm:ss][yyyy-MM-dd HH:mm]" +
+            .appendPattern("[dd/MM/yyyy hh:mm:ss a][dd/MM/yyyy h:mm:ss a][dd/MM/yyyy h:mm a][MM/dd/yyyy hh:mm:ss a][MM/dd/yyyy h:mm:ss a][MM/dd/yyyy h:mm a]" +
                            "[dd/MM/yyyy HH:mm:ss][dd/MM/yyyy HH:mm][dd.MM.yyyy HH:mm:ss][dd.MM.yyyy HH:mm]" +
+                           "[MM/dd/yyyy HH:mm:ss][MM/dd/yyyy HH:mm][M/d/yyyy h:mm:ss a][M/d/yyyy h:mm a]" +
+                           "[yyyy-MM-dd'T'HH:mm:ss][yyyy-MM-dd'T'HH:mm][yyyy-MM-dd HH:mm:ss][yyyy-MM-dd HH:mm]" +
                            "[yyyy/MM/dd HH:mm:ss][yyyy/MM/dd HH:mm][dd-MM-yyyy HH:mm:ss][dd-MM-yyyy HH:mm]")
             .toFormatter(Locale.ENGLISH);
 
     private static final DateTimeFormatter FLEXIBLE_DATE_FORMATTER = DateTimeFormatter.ofPattern(
-            "[MM/dd/yyyy][M/d/yyyy][yyyy-MM-dd][dd/MM/yyyy][dd.MM.yyyy][yyyy/MM/dd][dd-MM-yyyy]");
+            "[dd/MM/yyyy][MM/dd/yyyy][M/d/yyyy][dd.MM.yyyy][yyyy-MM-dd][yyyy/MM/dd][dd-MM-yyyy]");
     
     private static final DateTimeFormatter TIME_FORMATTER = new DateTimeFormatterBuilder()
             .parseCaseInsensitive()
             .appendPattern("[hh:mm:ss a][h:mm:ss a][hh:mm a][h:mm a][HH:mm:ss][HH:mm][H:mm:ss][H:mm]")
-            .toFormatter(Locale.ENGLISH); 
+            .toFormatter(Locale.ENGLISH);
     
     private static final List<String> INVALID_NAMING_FILES = Collections.synchronizedList(new ArrayList<>()); 
 
@@ -273,7 +273,7 @@ public class ImportServices {
 
             if (dateTimeIdx == null && (h.equals("datetime") || h.equals("timestamp") || h.contains("datahora") || h.contains("dateandtime"))) {
                 dateTimeIdx = i;
-            } else if (dateIdx == null && (h.equals("date") || h.equals("logdate") || h.equals("data"))) {
+            } else if (dateIdx == null && (h.equals("date") || h.equals("logdate") || h.equals("data") || h.equals("tempo"))) {
                 dateIdx = i;
             } else if (timeIdx == null && (h.equals("time") || h.equals("hora") || h.equals("logtime"))) {
                 timeIdx = i;
@@ -290,7 +290,7 @@ public class ImportServices {
         if (timeIdx != null) map.put("time", timeIdx);
 
         List<String> targetAliases = Arrays.asList(
-        		"contador2vb", "contador2vbm3", "contador2","vb", "vbm3", "baaa", "vbm", "corvol", "volcorrigido","data6",
+        		"contador2vb", "contador2vb3","contador2vbm3", "contador2","vb", "vbm3", "baaa", "vbm", "corvol", "volcorrigido","data6",
                 "correctedvolume", "vol", "volume", "vbase", "volbase", "vcorrigido", "vcor", "vm"
         );
 
@@ -300,6 +300,11 @@ public class ImportServices {
 
             if (hClean.contains("delta") || rawHeader.contains("Δ") || hClean.startsWith("dvb") || hClean.contains("error") || hClean.contains("alarm")) {
                 continue;
+            }
+            
+            if ((hClean.contains("contador2") || hClean.contains("contador")) && (hClean.contains("vb") || hClean.contains("vol"))) {
+                corrVolIdx = i;
+                break;
             }
 
             for (String target : targetAliases) {
@@ -335,10 +340,17 @@ public class ImportServices {
         String timeVal = getValueFromCol(cols, headerMap.get("time"));
         String volVal = getValueFromCol(cols, headerMap.get("corrVol"));
 
-        String primaryDateStr = !dateTimeVal.isEmpty() ? dateTimeVal : dateVal;
-        if (primaryDateStr.isEmpty() && !timeVal.isEmpty()) {
-            primaryDateStr = timeVal;
-            timeVal = "";
+        // Se tivermos data e hora em colunas separadas, juntamo-las numa única string de data/hora
+        String primaryDateStr;
+        if (!dateVal.isEmpty() && !timeVal.isEmpty()) {
+            primaryDateStr = dateVal + " " + timeVal;
+            timeVal = ""; // Já foi combinada
+        } else {
+            primaryDateStr = !dateTimeVal.isEmpty() ? dateTimeVal : dateVal;
+            if (primaryDateStr.isEmpty() && !timeVal.isEmpty()) {
+                primaryDateStr = timeVal;
+                timeVal = "";
+            }
         }
 
         if (primaryDateStr.isEmpty() || volVal.isEmpty()) return null;
@@ -349,7 +361,10 @@ public class ImportServices {
     private ConsumptionEntity buildConsumption(String dateStr, String timeStr, String volStr, FileImportEntity fileImport, ClientEntity client) {
         try {
             LocalDateTime logDateTime = parseDateTime(dateStr, timeStr);
-            if (logDateTime == null) return null;
+            if (logDateTime == null) {
+                System.err.println("⚠️ Falha ao converter data/hora: dateStr='" + dateStr + "', timeStr='" + timeStr + "'");
+                return null;
+            }
 
             BigDecimal volume = parseToBigDecimal(volStr);
 
@@ -370,6 +385,11 @@ public class ImportServices {
     private LocalDateTime parseDateTime(String dateStr, String timeStr) {
         if (dateStr == null || dateStr.trim().isEmpty()) return null;
         dateStr = dateStr.trim();
+        
+        if (dateStr.contains(" 1899-")) {
+            dateStr = dateStr.substring(0, dateStr.indexOf(" 1899-")).trim();
+        }
+        
         if (timeStr != null) timeStr = timeStr.trim();
 
         try {

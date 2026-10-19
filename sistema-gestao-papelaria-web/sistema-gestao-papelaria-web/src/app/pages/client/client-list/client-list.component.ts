@@ -113,10 +113,10 @@ export class ClientListComponent implements AfterViewInit, OnInit {
         this.totalElements = response.page?.totalElements ?? response.totalElements ?? 0;
       },
       error: (err) => {
-        console.error('Erro ao carregar clientes:', err);
+        console.error('Erro ao carregar estações:', err);
         this.dataSource = [];
         this.totalElements = 0;
-        this.snackbar.error('Erro ao carregar clientes!');
+        this.snackbar.error('Erro ao carregar estações!');
       }
     });
   }

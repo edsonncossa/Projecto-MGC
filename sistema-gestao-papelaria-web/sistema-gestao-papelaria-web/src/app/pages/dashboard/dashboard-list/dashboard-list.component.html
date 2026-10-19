@@ -156,22 +156,40 @@
   <nb-card class="filter-panel mb-4">
     <nb-card-body>
       <div class="filter-grid">
+
+        <!-- Categoria -->
+        <div class="filter-control">
+          <label class="label">Categoria</label>
+          <nb-select
+            placeholder="Selecione a Categoria"
+            multiple
+            [ngModel]="selectedCategories"
+            (ngModelChange)="onCategoriaSelecionadaChange($event)"
+            fullWidth>
+            <nb-option value="ALL">🏢 Todas as Categorias</nb-option>
+            <nb-option value="ENTRADAS"> Entradas</nb-option>
+            <nb-option value="SAIDAS"> Saídas</nb-option>
+          </nb-select>
+        </div>
         
         <!-- Estação(ões) -->
+<!-- Estação(ões) -->
         <div class="filter-control">
           <label class="label">Estação(ões)</label>
-  <nb-select
-  placeholder="Selecione a(s) Estação(ões)"
-  multiple
-  [ngModel]="selectedClientIds"
-  (ngModelChange)="onClienteSelecionadoChange($event)"
-  fullWidth>
-  <nb-option value="ALL">🏢 Todas as Estações</nb-option>
-  <nb-option *ngFor="let c of listaClientes" [value]="c.id">
-    {{ c.firstName }}
-  </nb-option>
-</nb-select>
+          <nb-select
+            placeholder="Selecione a(s) Estação(ões)"
+            multiple
+            [ngModel]="selectedClientIds"
+            (ngModelChange)="onClienteSelecionadoChange($event)"
+            fullWidth>
+            <nb-option value="ALL">🏢 Todas as Estações</nb-option>
+            <nb-option *ngFor="let c of listaClientesFiltradaPorCategoria" [value]="c.id">
+              {{ c.firstName }}
+            </nb-option>
+          </nb-select>
         </div>
+
+
 
         <!-- Visão Temporal -->
         <div class="filter-control">
