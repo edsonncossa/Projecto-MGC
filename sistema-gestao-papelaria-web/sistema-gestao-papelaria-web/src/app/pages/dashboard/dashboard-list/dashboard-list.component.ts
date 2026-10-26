@@ -57,7 +57,7 @@ export class DashboardListComponent implements OnInit {
   areaChartDataGJ: any[] = [{ name: 'Energia Real (GJ)', series: [] }];
   
   selectedClientIds: (number | string)[] = ['ALL'];
-  viewMode: 'MONTHLY' | 'YEARLY' | 'RANGE' | 'MONTHCOMPARATION' | 'YEARCOMPARATION' | null = null;
+  viewMode: 'MONTHLY' | 'YEARLY' | 'RANGE' | 'MONTHCOMPARATION' | 'YEARCOMPARATION' | 'ENTRADA_VS_SAIDA' | null = null;
   selectedMonth2: number | null = null;
   selectedYear2: number | null = null;  
   startDate: Date | null = null;
@@ -351,6 +351,106 @@ isClienteEntrada(cliente: Client | undefined | null): boolean {
   );
   }
 
+ private processarComparacaoEntradaSaida(consumptions: any[]): void {
+  if (!Array.isArray(consumptions) || consumptions.length === 0) {
+    this.resetMetrics();
+    return;
+  }
+
+  const consumptionsOrdenados = [...consumptions].sort((a, b) => {
+    return new Date(a.consumptionDate).getTime() - new Date(b.consumptionDate).getTime();
+  });
+
+  const mapEntradas = new Map<string, number>();
+  const mapSaidas = new Map<string, number>();
+  const previousReadingMap = new Map<number, number>();
+
+  let totalEntradaVol = 0;
+  let totalSaidaVol = 0;
+  let totalRegs = 0;
+
+  for (let i = 0; i < consumptionsOrdenados.length; i++) {
+    const c = consumptionsOrdenados[i];
+    if (!c) continue;
+
+    if (i === 0 && (c.energyContent || c.energy_content) && !this.energyContentMjSm3) {
+      this.energyContentMjSm3 = Number(c.energyContent || c.energy_content);
+    }
+
+    const clientIdNum = Number(c.clientId ?? c.client?.id ?? c.client_id ?? 0);
+    const cliente = this.listaClientes.find(cli => Number(cli.id) === clientIdNum);
+    
+    // Verifica se pertence à categoria Entradas (PRS1, HPCMS3, etc.)
+    const eEntrada = this.isClienteEntrada(cliente);
+
+    const rawReading = Number(c.volume ?? c.reading ?? c.correctedVolume ?? 0);
+    let deltaVolume = 0;
+
+    if (c.deltaVolume !== undefined && c.deltaVolume !== null && Number(c.deltaVolume) >= 0) {
+      deltaVolume = Number(c.deltaVolume);
+    } else {
+      if (!previousReadingMap.has(clientIdNum)) {
+        previousReadingMap.set(clientIdNum, rawReading);
+        continue;
+      }
+      const prevReading = previousReadingMap.get(clientIdNum)!;
+      deltaVolume = this.calcularDeltaLeitura(
+        rawReading,
+        prevReading,
+        c.meterMaxCapacity ? Number(c.meterMaxCapacity) : this.DEFAULT_ROLLOVER_LIMIT
+      );
+    }
+    previousReadingMap.set(clientIdNum, rawReading);
+    totalRegs++;
+
+    // Chave de data estruturada (Mês ou Dia)
+    let dateKey = 'S/D';
+    if (c.consumptionDate) {
+      const dateVal = new Date(c.consumptionDate);
+      if (!isNaN(dateVal.getTime())) {
+        dateKey = (this.viewMode === 'YEARLY')
+          ? this.meses[dateVal.getMonth()]
+          : `${String(dateVal.getDate()).padStart(2, '0')}/${String(dateVal.getMonth() + 1).padStart(2, '0')}`;
+      }
+    }
+
+    if (eEntrada) {
+      mapEntradas.set(dateKey, (mapEntradas.get(dateKey) || 0) + deltaVolume);
+      totalEntradaVol += deltaVolume;
+    } else {
+      mapSaidas.set(dateKey, (mapSaidas.get(dateKey) || 0) + deltaVolume);
+      totalSaidaVol += deltaVolume;
+    }
+  }
+
+  // Alinhar as datas de ambas as séries
+  const todasDatas = new Set([...mapEntradas.keys(), ...mapSaidas.keys()]);
+  const datasOrdenadas = Array.from(todasDatas).sort((a, b) => this.compararLabelsPeriodo(a, b));
+
+  const seriesEntradas = datasOrdenadas.map(d => ({ name: d, value: Number((mapEntradas.get(d) || 0).toFixed(2)) }));
+  const seriesSaidas = datasOrdenadas.map(d => ({ name: d, value: Number((mapSaidas.get(d) || 0).toFixed(2)) }));
+
+  // Definir as 2 linhas exatas para o gráfico
+  this.areaChartDataM3 = [
+    { name: '📥 Entradas (PRS1/HPCMS3)', series: seriesEntradas },
+    { name: '📤 Saídas (Demais Estações)', series: seriesSaidas }
+  ];
+
+  this.totalVolumeConsumido = Number((totalEntradaVol + totalSaidaVol).toFixed(2));
+  this.totalRegistos = totalRegs;
+
+  const totalDias = this.calcularPeriodosEsperados() || 1;
+  this.mediaConsumoDiarioM3 = this.totalVolumeConsumido / totalDias;
+
+  // Breakdown para os cards de métricas (mostrando a separação exata)
+  this.volumePorCliente = [
+    { name: '📥 Total Entradas', value: Number(totalEntradaVol.toFixed(2)) },
+    { name: '📤 Total Saídas', value: Number(totalSaidaVol.toFixed(2)) }
+  ];
+
+  this.recalcularEnergiaComNovoEnergyContent();
+}
+
 recarregarDadosDashboard(): void {
 if (!this.selectedClientIds || this.selectedClientIds.length === 0 || !this.isFiltrosCompletos()) {
     this.resetMetrics();
@@ -448,6 +548,43 @@ if (this.viewMode === 'MONTHCOMPARATION') {
       });
       return;
     }
+
+if (this.viewMode === 'ENTRADA_VS_SAIDA') {
+  let startIso: string | undefined;
+  let endIso: string | undefined;
+
+  // Definir o intervalo de datas com base na visão atual (ou usar o mês/ano ativo)
+  if (this.selectedYear !== null && this.selectedMonth !== null) {
+    const start = new Date(this.selectedYear, this.selectedMonth, 1, 0, 0, 0);
+    const ultimoDia = new Date(this.selectedYear, this.selectedMonth + 1, 0).getDate();
+    const end = new Date(this.selectedYear, this.selectedMonth, ultimoDia, 23, 59, 59);
+    startIso = this.formatDateTimeToIso(start);
+    endIso = this.formatDateTimeToIso(end);
+  } else if (this.selectedYear !== null) {
+    startIso = this.formatDateTimeToIso(new Date(this.selectedYear, 0, 1, 0, 0, 0));
+    endIso = this.formatDateTimeToIso(new Date(this.selectedYear, 11, 31, 23, 59, 59));
+  }
+
+  this.consumptionService.filterConsumptions(0, 10000, 'consumptionDate', 'asc', {
+    startDate: startIso,
+    endDate: endIso
+  })
+  .pipe(finalize(() => {
+    this.spinnerVisible = false;
+    this.cdr.markForCheck();
+  }))
+  .subscribe({
+    next: (res: any) => {
+      const consumptions = res?._embedded?.consumptionDTOList || res?._embedded?.consumptions || res?.content || [];
+      this.processarComparacaoEntradaSaida(consumptions);
+    },
+    error: (err) => {
+      console.error('Erro ao carregar dados comparativos:', err);
+      this.resetMetrics();
+    }
+  });
+  return;
+}
 
     // MODOS INDIVIDUAIS (MONTHLY, YEARLY, RANGE)
     let startIso: string | undefined;

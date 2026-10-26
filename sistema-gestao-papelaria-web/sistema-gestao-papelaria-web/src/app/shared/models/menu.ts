@@ -5,6 +5,7 @@ export const MENU_ITEMS: NbMenuItem[] = [
     title: 'Dashboard',
     icon: 'home-outline',
     home: true,
+    link: '/dashboard',
   },
   {
     title: 'GESTÃO DE CONSUMO',

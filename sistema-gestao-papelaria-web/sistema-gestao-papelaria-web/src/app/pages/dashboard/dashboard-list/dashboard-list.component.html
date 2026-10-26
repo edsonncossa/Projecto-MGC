@@ -204,6 +204,7 @@
             <nb-option value="RANGE">🗓️ Intervalo Personalizado</nb-option>
             <nb-option value="MONTHCOMPARATION">🗓️ Comparação Mensal</nb-option>
             <nb-option value="YEARCOMPARATION">🗓️ Comparação Anual</nb-option>
+            <nb-option value="ENTRADA_VS_SAIDA">⚖️ Comparação: Entradas vs Saídas</nb-option>
           </nb-select>
         </div>
 
@@ -341,7 +342,7 @@
   </nb-card>
 
   <!-- 3. DISTRIBUIÇÃO RELATIVA E RANKING -->
-  <div class="charts-row-split mb-4" *ngIf="isAllClientsSelected || isMultiplosClientesSelecionados">
+  <div class="charts-row-split mb-4" *ngIf="isAllClientsSelected || isMultiplosClientesSelecionados && viewMode !== 'ENTRADA_VS_SAIDA'">
     
     <!-- Distribuição % (Donut) -->
     <nb-card [nbSpinner]="spinnerVisible" nbSpinnerStatus="primary" class="card-donut-custom">
