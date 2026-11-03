@@ -1,6 +1,17 @@
+/* ===== BASE / ESPAÇAMENTO =====
+   O espaçamento vertical vem de UM único sítio (gap do wrapper). Antes dependia de classes
+   utilitárias (mb-3, mb-4, mt-2...) que não existem neste projeto, por isso os blocos ficavam colados. */
 .dashboard-wrapper {
-  padding: 10px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  padding: 10px 0 24px;
   animation: fadeIn 0.4s ease-in-out;
+
+  /* Os nb-card trazem margin-bottom próprio; o gap já trata do espaço. */
+  nb-card { margin: 0; }
+  nb-alert { margin: 0; }
+  p { margin: 0; }
 }
 
 @keyframes fadeIn {
@@ -11,10 +22,10 @@
 /* ===== 1. PAINEL DE MÉTRICAS (KPI CARDS) ===== */
 .kpi-grid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 18px;
 
-  @media (max-width: 1200px) { grid-template-columns: repeat(2, 1fr); }
+  @media (max-width: 1200px) { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   @media (max-width: 576px) { grid-template-columns: 1fr; }
 }
 
@@ -24,8 +35,12 @@
   padding: 20px 24px;
   color: #ffffff;
   display: flex;
+  flex-wrap: wrap;               /* o input de Energy Content passa para a linha de baixo */
   align-items: center;
+  align-content: center;
   justify-content: space-between;
+  gap: 12px 16px;
+  min-height: 150px;
   overflow: hidden;
   box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
   transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
@@ -51,29 +66,30 @@
     .kpi-icon nb-icon { transform: scale(1.12) rotate(-5deg); opacity: 0.55; }
   }
 
-  .kpi-info { z-index: 1; }
+  .kpi-info { z-index: 1; flex: 1 1 0; min-width: 0; }
 
-  .kpi-title { 
-    font-size: 0.82rem; 
-    font-weight: 600; 
+  .kpi-title {
+    font-size: 0.82rem;
+    font-weight: 600;
     letter-spacing: 0.5px;
     text-transform: uppercase;
-    opacity: 0.9; 
-    display: block; 
-    margin-bottom: 6px; 
+    opacity: 0.9;
+    display: block;
+    margin-bottom: 6px;
   }
 
-  .kpi-value { 
-    font-size: 1.85rem; 
-    font-weight: 800; 
-    margin: 0; 
-    line-height: 1.1; 
+  .kpi-value {
+    font-size: 1.85rem;
+    font-weight: 800;
+    margin: 0;
+    line-height: 1.1;
     letter-spacing: -0.5px;
-    small { font-size: 0.9rem; font-weight: 600; } 
+    small { font-size: 0.9rem; font-weight: 600; }
   }
 
   .kpi-icon {
     z-index: 1;
+    flex: 0 0 auto;
     nb-icon { font-size: 3rem; opacity: 0.35; transition: transform 0.3s ease, opacity 0.3s ease; }
   }
 
@@ -84,6 +100,25 @@
 
   .kpi-subtext { display: block; font-size: 0.75rem; opacity: 0.88; margin-top: 6px; font-weight: 500; }
 
+  /* Energy Content: ocupa a linha inteira por baixo do valor (antes ficava espremido ao lado e sobrepunha o título) */
+  .kpi-energy-input {
+    z-index: 1;
+    flex: 1 0 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+
+    .kpi-input-label {
+      font-size: 0.72rem;
+      font-weight: 600;
+      letter-spacing: 0.4px;
+      text-transform: uppercase;
+      opacity: 0.9;
+    }
+  }
+
+  .full-width-input { width: 100%; }
+
   .input-sm {
     background-color: rgba(255, 255, 255, 0.18);
     border: 1px solid rgba(255, 255, 255, 0.35);
@@ -93,7 +128,83 @@
     padding: 4px 8px;
     &::placeholder { color: rgba(255, 255, 255, 0.65); }
     &:focus { background-color: rgba(255, 255, 255, 0.3); border-color: #ffffff; outline: none; }
+
+    &.input-alerta { border-color: #fde68a; box-shadow: 0 0 0 2px rgba(253, 230, 138, 0.35); }
   }
+
+  .kpi-hint {
+    display: block;
+    font-size: 0.72rem;
+    font-weight: 600;
+    line-height: 1.3;
+    color: #fef3c7;
+    background: rgba(0, 0, 0, 0.18);
+    padding: 4px 8px;
+    border-radius: 6px;
+  }
+}
+
+/* Linhas (comparações / entradas vs saídas) */
+.card-kpi .kpi-lines {
+  display: flex;
+  flex-direction: column;
+  margin-top: 2px;
+
+  .kpi-line {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 12px;
+    padding: 5px 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.18);
+
+    &:last-child { border-bottom: 0; }
+
+    .kpi-line-label {
+      font-size: 0.78rem;
+      font-weight: 600;
+      opacity: 0.92;
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .kpi-line-value {
+      font-size: 1.1rem;
+      font-weight: 800;
+      white-space: nowrap;
+      text-align: right;
+      small { font-size: 0.7rem; font-weight: 600; }
+      .kpi-line-extra { display: block; opacity: 0.85; }
+    }
+
+    &.kpi-line-strong .kpi-line-value { font-size: 1.3rem; }
+  }
+}
+
+.card-kpi .kpi-breakdown {
+  margin-top: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: 72px;
+  overflow-y: auto;
+
+  .kpi-breakdown-item {
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+    font-size: 0.72rem;
+    opacity: 0.92;
+  }
+  .kpi-breakdown-name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 110px;
+  }
+  .kpi-breakdown-value { font-weight: 700; white-space: nowrap; }
 }
 
 /* ===== 1.1 TOGGLE KPIS AVANÇADOS ===== */
@@ -109,7 +220,7 @@
   }
 }
 
-/* ===== 1.2 FAIXA DE KPIS AVANÇADOS (ORGANIZADA E MODERNA) ===== */
+/* ===== 1.2 FAIXA DE KPIS AVANÇADOS ===== */
 .kpi-strip {
   border-radius: 12px;
   border: 1px solid #e2e8f0;
@@ -118,25 +229,16 @@
 
   .kpi-strip-grid {
     display: grid;
-    grid-template-columns: repeat(5, 1fr);
+    grid-template-columns: repeat(5, minmax(0, 1fr));
     gap: 16px;
     align-items: center;
 
-    @media (max-width: 1200px) {
-      grid-template-columns: repeat(3, 1fr);
-    }
-    @media (max-width: 768px) {
-      grid-template-columns: repeat(2, 1fr);
-    }
-    @media (max-width: 480px) {
-      grid-template-columns: 1fr;
-    }
+    @media (max-width: 1200px) { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    @media (max-width: 768px) { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    @media (max-width: 480px) { grid-template-columns: 1fr; }
   }
 
-  /* Removemos os divisores verticais antigos em favor de cartões individuais limpos */
-  .kpi-strip-divider {
-    display: none; 
-  }
+  .kpi-strip-divider { display: none; }
 
   .kpi-strip-item {
     display: flex;
@@ -165,6 +267,7 @@
       display: flex;
       flex-direction: column;
       width: 100%;
+      min-width: 0;
     }
 
     .kpi-strip-label {
@@ -179,7 +282,7 @@
       font-size: 1.05rem;
       font-weight: 700;
       color: #0f172a;
-      
+
       &.muted {
         color: #94a3b8;
         font-weight: 500;
@@ -211,12 +314,12 @@
   }
 }
 
-/* Ajuste unificado para os inputs de data ficarem idênticos aos nb-select */
+/* Inputs de data com o mesmo aspeto dos nb-select */
 input[type="date"].full-width-input {
   appearance: none;
   -webkit-appearance: none;
   -moz-appearance: none;
-  height: 40px; /* Altura padrão dos nb-select no Nebular */
+  height: 40px;
   padding: 0.375rem 0.75rem;
   font-size: 0.9375rem;
   line-height: 1.5;
@@ -236,134 +339,153 @@ input[type="date"].full-width-input {
 
   &:focus {
     background-color: #ffffff;
-    border-color: #3366ff; /* Cor primária do Nebular */
+    border-color: #3366ff;
     outline: none;
     box-shadow: 0 0 0 2px rgba(51, 102, 255, 0.3);
   }
+
+  &.input-invalido {
+    border-color: #ff3d71;
+    background-color: #fff5f7;
+    &:focus { box-shadow: 0 0 0 2px rgba(255, 61, 113, 0.3); }
+  }
 }
 
-/* ===== 2. PAINEL DE FILTROS (OTIMIZADO PARA CABEREM TODOS NA MESMA LINHA) ===== */
+/* ===== 2. PAINEL DE FILTROS =====
+   Grelha em vez de uma única linha flex: nada fica cortado nem aparece scroll horizontal. */
 .filter-panel {
   border-radius: 12px;
   border: 1px solid #e2e8f0;
-  
-  .filter-grid {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 16px; /* Espaçamento otimizado */
-    align-items: flex-end;
 
-    .filter-control {
-      display: flex;
-      flex-direction: column;
-      flex: 1 1 180px;
-      min-width: 150px;
-
-      .label { 
-        font-size: 0.78rem; 
-        font-weight: 700; 
-        color: #475569; 
-        margin-bottom: 6px; 
-        text-transform: uppercase; 
-      }
-    }
-    
-
-    /* Campos compactos para meses e anos (evita quebra de linha) */
-    .filter-sm {
-      flex: 1 1 120px;
-      min-width: 110px;
-    }
-  }
-}
-
-/* ===== 3. GRÁFICOS SUPERIORES (DONUT E BARRAS) ===== */
-.charts-row-split {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 20px;
-  @media (max-width: 992px) { grid-template-columns: 1fr; }
-}
-
-nb-card {
-  border-radius: 12px;
-  border: 1px solid #e2e8f0;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03);
-}
-
-.card-header-flex {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  border-bottom: 1px solid #f1f5f9;
-  .header-title { display: flex; align-items: center; gap: 10px; font-weight: 700; color: #1e293b; font-size: 0.95rem; }
-}
-
-.card-donut-custom {
-  .chart-container-donut { padding: 1rem; overflow: hidden; }
-  .donut-content-grid {
-    display: grid;
-    grid-template-columns: 180px 1fr;
-    gap: 1.25rem;
-    align-items: center;
-  }
-  .donut-wrapper { width: 100%; height: 180px; display: flex; align-items: center; justify-content: center; }
-  
-  .client-progress-list {
+  nb-card-body {
     display: flex;
     flex-direction: column;
-    gap: 0.6rem;
-    max-height: 220px;
-    overflow-y: auto;
-    .progress-item { cursor: pointer; padding: 4px 6px; border-radius: 6px; &:hover { background-color: rgba(0, 0, 0, 0.04); } }
-    .progress-info { display: flex; justify-content: space-between; align-items: center; font-size: 0.85rem; }
-    .progress-bar-bg { height: 6px; width: 100%; background-color: #edf1f7; border-radius: 3px; overflow: hidden; }
-    .progress-bar-fill { height: 100%; border-radius: 3px; }
+    gap: 18px;
+    padding: 1.25rem 1.5rem;
+    overflow: visible;
   }
-}
 
-/* ===== 4. GRÁFICOS INFERIORES DE LINHA (ALTURA FIXA E CORRETA) ===== */
-.main-chart-card {
-  .chart-container-full {
-    padding: 1.25rem;
-    width: 100%;
+  .filter-row {
+    display: grid;
+    gap: 16px 20px;
+    align-items: end;
+  }
 
-    .chart-box {
-      width: 100%;
-      height: 360px; /* Altura explícita para evitar o encolhimento vertical */
-      display: block;
-      position: relative;
+  /* Categoria | Estação | Visão Temporal */
+  .filter-row-main {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    @media (max-width: 992px) { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    @media (max-width: 640px) { grid-template-columns: 1fr; }
+  }
+
+  /* Campos do período (mensal, anual, intervalo, entradas vs saídas) */
+  .filter-row-period {
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    padding-top: 18px;
+    border-top: 1px dashed #e2e8f0;
+  }
+
+  /* Dois períodos lado a lado */
+  .filter-row-comparison {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    padding-top: 18px;
+    border-top: 1px dashed #e2e8f0;
+    @media (max-width: 768px) { grid-template-columns: 1fr; }
+  }
+
+  .filter-control {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+
+    .label {
+      font-size: 0.78rem;
+      font-weight: 700;
+      color: #475569;
+      margin-bottom: 6px;
+      text-transform: uppercase;
     }
   }
-}
 
-/* ===== SEÇÃO DE ENERGY CONTENT MENSAL (VISÃO ANUAL) ===== */
-.yearly-energy-section {
-  border-top: 1px dashed #cbd5e1;
-  margin-top: 1.5rem;
-  padding-top: 1.25rem;
-  width: 100%;
+  .period-group {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 12px 14px 14px;
+    background-color: #f8fafc;
+    border: 1px solid #eef2f7;
+    border-radius: 10px;
+    min-width: 0;
 
-  .yearly-section-header {
+    .period-group-title {
+      font-size: 0.72rem;
+      font-weight: 800;
+      letter-spacing: 0.6px;
+      text-transform: uppercase;
+      color: #3366ff;
+    }
+
+    .period-group-fields {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+      gap: 12px 16px;
+    }
+  }
+
+  .filter-note {
+    grid-column: 1 / -1;
     display: flex;
     align-items: center;
     gap: 8px;
+    font-size: 0.8rem;
+    color: #64748b;
   }
+
+  .filter-footer {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 10px;
+    padding-top: 14px;
+    border-top: 1px solid #f1f5f9;
+
+    button {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      border-radius: 8px;
+      font-weight: 600;
+    }
+  }
+}
+
+/* ===== 2.1 AVISOS ===== */
+.alerts-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* ===== 2.2 ENERGY CONTENT MENSAL ===== */
+.energy-card {
+  border-radius: 12px;
+
+  .header-actions { display: flex; align-items: center; gap: 8px; }
 
   .monthly-energy-grid {
     display: grid;
-    grid-template-columns: repeat(6, 1fr); /* 6 colunas por linha (Janeiro a Junho em cima, Julho a Dezembro em baixo) */
-    gap: 12px;
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    gap: 14px 16px;
     width: 100%;
 
-    @media (max-width: 1200px) { grid-template-columns: repeat(4, 1fr); }
-    @media (max-width: 768px) { grid-template-columns: repeat(3, 1fr); }
-    @media (max-width: 480px) { grid-template-columns: repeat(2, 1fr); }
+    @media (max-width: 1200px) { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+    @media (max-width: 768px) { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    @media (max-width: 480px) { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 
     .filter-control {
       display: flex;
       flex-direction: column;
-      width: 100%;
+      min-width: 0;
 
       .label {
         font-size: 0.75rem;
@@ -393,44 +515,73 @@ nb-card {
   }
 }
 
-/* Elementos auxiliares */
-.yearly-energy-section { border-top: 1px dashed #cbd5e1; margin-top: 1.5rem; padding-top: 1.25rem; }
-.chart-hint { display: flex; align-items: center; gap: 8px; font-size: 0.8rem; color: #64748b; background-color: #f8fafc; padding: 8px 12px; border-radius: 8px; border: 1px solid #e2e8f0; }
-.empty-state { text-align: center; padding: 60px 10px; color: #94a3b8; nb-icon { font-size: 44px; margin-bottom: 8px; } p { margin: 0; font-size: 0.9rem; } }
+/* ===== 3. CARTÕES E GRÁFICOS ===== */
+.charts-row-split {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 20px;
+  @media (max-width: 992px) { grid-template-columns: 1fr; }
+}
 
-/* ===== ESTILOS EM FALTA (já usados no HTML) ===== */
-.card-kpi .kpi-breakdown {
-  margin-top: 10px;
+nb-card {
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03);
+}
+
+.card-header-flex {
   display: flex;
-  flex-direction: column;
-  gap: 2px;
-  max-height: 72px;
-  overflow-y: auto;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border-bottom: 1px solid #f1f5f9;
+  .header-title { display: flex; align-items: center; gap: 10px; font-weight: 700; color: #1e293b; font-size: 0.95rem; }
+}
 
-  .kpi-breakdown-item {
+.card-donut-custom {
+  .chart-container-donut { padding: 1rem; overflow: hidden; }
+  .donut-content-grid {
+    display: grid;
+    grid-template-columns: 180px 1fr;
+    gap: 1.25rem;
+    align-items: center;
+  }
+  .donut-wrapper { width: 100%; height: 180px; display: flex; align-items: center; justify-content: center; }
+
+  .client-progress-list {
     display: flex;
-    justify-content: space-between;
-    gap: 10px;
-    font-size: 0.72rem;
-    opacity: 0.92;
+    flex-direction: column;
+    gap: 0.6rem;
+    max-height: 220px;
+    overflow-y: auto;
+    .progress-item { cursor: pointer; padding: 4px 6px; border-radius: 6px; &:hover { background-color: rgba(0, 0, 0, 0.04); } }
+    .progress-info { display: flex; justify-content: space-between; align-items: center; font-size: 0.85rem; }
+    .progress-bar-bg { height: 6px; width: 100%; background-color: #edf1f7; border-radius: 3px; overflow: hidden; }
+    .progress-bar-fill { height: 100%; border-radius: 3px; }
+
+    .client-name-group { display: flex; align-items: center; gap: 8px; min-width: 0; }
+    .color-indicator { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+    .client-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; color: #1e293b; }
+    .client-percent { font-weight: 700; color: #475569; margin-left: 8px; }
   }
-  .kpi-breakdown-name {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    max-width: 110px;
-  }
-  .kpi-breakdown-value { font-weight: 700; white-space: nowrap; }
 }
 
-.card-donut-custom .client-progress-list {
-  .client-name-group { display: flex; align-items: center; gap: 8px; min-width: 0; }
-  .color-indicator { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
-  .client-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; color: #1e293b; }
-  .client-percent { font-weight: 700; color: #475569; margin-left: 8px; }
+/* Gráficos de linha: altura explícita para evitar o encolhimento vertical */
+.main-chart-card {
+  .chart-container-full {
+    padding: 1.25rem;
+    width: 100%;
+
+    .chart-box {
+      width: 100%;
+      height: 360px;
+      display: block;
+      position: relative;
+    }
+  }
 }
 
-/* O gráfico de barras precisa de altura explícita, tal como os de linha */
+/* Gráfico de barras: também precisa de altura explícita */
 .chart-container-bar {
   padding: 1.25rem;
   .chart-box-bar {
@@ -439,4 +590,25 @@ nb-card {
     display: block;
     position: relative;
   }
+}
+
+/* ===== AUXILIARES ===== */
+.chart-hint {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.8rem;
+  color: #64748b;
+  background-color: #f8fafc;
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+}
+
+.empty-state {
+  text-align: center;
+  padding: 60px 10px;
+  color: #94a3b8;
+  nb-icon { font-size: 44px; margin-bottom: 8px; }
+  p { margin: 0; font-size: 0.9rem; }
 }

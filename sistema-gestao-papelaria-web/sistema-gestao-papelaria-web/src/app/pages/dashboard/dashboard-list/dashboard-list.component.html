@@ -1,38 +1,90 @@
 <div class="dashboard-wrapper">
 
   <!-- 1. PAINEL DE METRICAS (KPI CARDS) -->
-  <div class="kpi-grid mb-4">
+  <div class="kpi-grid">
 
-    <!-- Volume Total m³ -->
+    <!-- Volume m³ -->
     <div class="card-kpi kpi-blue">
-      <div class="kpi-info">
-        <span class="kpi-title">Consumo Real Total (m³)</span>
-        <h3 class="kpi-value">{{ totalVolumeConsumido | number:'1.2-2' }} <small>m³</small></h3>
+      <div class="kpi-info" [ngSwitch]="modoKpi">
 
-        <!-- Breakdown por estação (só quando há múltiplas) -->
-        <div class="kpi-breakdown" *ngIf="volumePorCliente.length > 1">
-          <div class="kpi-breakdown-item" *ngFor="let item of volumePorCliente; trackBy: trackByName">
-            <span class="kpi-breakdown-name" [title]="item.name">{{ item.name }}</span>
-            <span class="kpi-breakdown-value">{{ item.value | number:'1.2-2' }} m³</span>
+        <ng-container *ngSwitchCase="'NORMAL'">
+          <span class="kpi-title">Consumo Real Total (m³)</span>
+          <h3 class="kpi-value">{{ totalVolumeConsumido | number:'1.2-2' }} <small>m³</small></h3>
+
+          <!-- Breakdown por estação (só quando há múltiplas) -->
+          <div class="kpi-breakdown" *ngIf="volumePorCliente.length > 1">
+            <div class="kpi-breakdown-item" *ngFor="let item of volumePorCliente; trackBy: trackByName">
+              <span class="kpi-breakdown-name" [title]="item.name">{{ item.name }}</span>
+              <span class="kpi-breakdown-value">{{ item.value | number:'1.2-2' }} m³</span>
+            </div>
           </div>
-        </div>
+        </ng-container>
+
+        <ng-container *ngSwitchCase="'COMPARACAO'">
+          <span class="kpi-title">Consumo Real por Período (m³)</span>
+          <div class="kpi-lines">
+            <div class="kpi-line" *ngFor="let l of linhasM3; trackBy: trackByLabel">
+              <span class="kpi-line-label" [title]="l.label">{{ l.label }}</span>
+              <span class="kpi-line-value">{{ l.value | number:'1.2-2' }} <small>m³</small></span>
+            </div>
+          </div>
+          <span class="kpi-subtext" *ngIf="variacaoPercentual !== null">
+            Variação: {{ variacaoPercentual > 0 ? '+' : '' }}{{ variacaoPercentual | number:'1.1-1' }}%
+          </span>
+        </ng-container>
+
+        <ng-container *ngSwitchCase="'ENTRADA_SAIDA'">
+          <span class="kpi-title">Entradas vs Consumo (m³)</span>
+          <div class="kpi-lines">
+            <div class="kpi-line" [class.kpi-line-strong]="l.destaque" *ngFor="let l of linhasM3; trackBy: trackByLabel">
+              <span class="kpi-line-label" [title]="l.label">{{ l.label }}</span>
+              <span class="kpi-line-value">{{ l.value | number:'1.2-2' }} <small>m³</small></span>
+            </div>
+          </div>
+        </ng-container>
+
       </div>
       <div class="kpi-icon">
         <nb-icon icon="droplet" pack="eva"></nb-icon>
       </div>
     </div>
 
-    <!-- Energia Total GJ -->
+    <!-- Energia GJ -->
     <div class="card-kpi kpi-orange">
-      <div class="kpi-info">
-        <span class="kpi-title">Energia Total (GJ)</span>
-        <h3 class="kpi-value">{{ totalEnergiaConsumidaGJ | number:'1.2-2' }} <small>GJ</small></h3>
+      <div class="kpi-info" [ngSwitch]="modoKpi">
+
+        <ng-container *ngSwitchCase="'NORMAL'">
+          <span class="kpi-title">Energia Total (GJ)</span>
+          <h3 class="kpi-value">{{ totalEnergiaConsumidaGJ | number:'1.2-2' }} <small>GJ</small></h3>
+        </ng-container>
+
+        <ng-container *ngSwitchCase="'COMPARACAO'">
+          <span class="kpi-title">Energia por Período (GJ)</span>
+          <div class="kpi-lines">
+            <div class="kpi-line" *ngFor="let l of linhasGJ; trackBy: trackByLabel">
+              <span class="kpi-line-label" [title]="l.label">{{ l.label }}</span>
+              <span class="kpi-line-value">{{ l.value | number:'1.2-2' }} <small>GJ</small></span>
+            </div>
+          </div>
+        </ng-container>
+
+        <ng-container *ngSwitchCase="'ENTRADA_SAIDA'">
+          <span class="kpi-title">Entradas vs Consumo (GJ)</span>
+          <div class="kpi-lines">
+            <div class="kpi-line" [class.kpi-line-strong]="l.destaque" *ngFor="let l of linhasGJ; trackBy: trackByLabel">
+              <span class="kpi-line-label" [title]="l.label">{{ l.label }}</span>
+              <span class="kpi-line-value">{{ l.value | number:'1.2-2' }} <small>GJ</small></span>
+            </div>
+          </div>
+        </ng-container>
+
       </div>
       <div class="kpi-icon">
         <nb-icon icon="flash-outline" pack="eva"></nb-icon>
       </div>
-      <div class="filter-control mt-2">
-        <label class="label text-white-50" for="energyInput">Energy Content (MJ/m³)</label>
+
+      <div class="kpi-energy-input">
+        <label class="kpi-input-label" for="energyInput">Energy Content (MJ/m³)</label>
         <input
           id="energyInput"
           nbInput
@@ -41,30 +93,67 @@
           [(ngModel)]="energyContentMjSm3"
           (ngModelChange)="onEnergyContentChange()"
           placeholder="Ex: 38.0"
+          [class.input-alerta]="!!avisoEnergia"
           class="full-width-input input-sm" />
+        <span class="kpi-hint" *ngIf="avisoEnergia">{{ avisoEnergia }}</span>
       </div>
     </div>
 
-    <!-- Média Diária (m³ e GJ) -->
+    <!-- Média diária / Erro -->
     <div class="card-kpi kpi-cyan">
-      <div class="kpi-info">
-        <span class="kpi-title">Média Diária Real</span>
-        <h3 class="kpi-value">
-          {{ mediaConsumoDiarioM3 | number:'1.1-1' }} <small>m³/dia</small>
-        </h3>
-        <span class="kpi-subtext">~ {{ mediaConsumoDiarioGJ | number:'1.1-1' }} GJ/dia</span>
+      <div class="kpi-info" [ngSwitch]="modoKpi">
+
+        <ng-container *ngSwitchCase="'NORMAL'">
+          <span class="kpi-title">Média Diária Real</span>
+          <h3 class="kpi-value">
+            {{ mediaConsumoDiarioM3 | number:'1.1-1' }} <small>m³/dia</small>
+          </h3>
+          <span class="kpi-subtext">~ {{ mediaConsumoDiarioGJ | number:'1.1-1' }} GJ/dia</span>
+        </ng-container>
+
+        <ng-container *ngSwitchCase="'COMPARACAO'">
+          <span class="kpi-title">Média Diária por Período</span>
+          <div class="kpi-lines">
+            <div class="kpi-line" *ngFor="let l of linhasMedia; trackBy: trackByLabel">
+              <span class="kpi-line-label" [title]="l.label">{{ l.label }}</span>
+              <span class="kpi-line-value">
+                {{ l.value | number:'1.1-1' }} <small>m³/dia</small>
+                <small class="kpi-line-extra">~ {{ (l.value2 || 0) | number:'1.1-1' }} GJ/dia</small>
+              </span>
+            </div>
+          </div>
+        </ng-container>
+
+        <ng-container *ngSwitchCase="'ENTRADA_SAIDA'">
+          <span class="kpi-title" title="Erro (%) = (Entrada − Consumo) / Consumo × 100">Erro (Entradas vs Consumo)</span>
+          <ng-container *ngIf="resumoES as es; else semResumoES">
+            <h3 class="kpi-value">
+              <ng-container *ngIf="es.erroM3 !== null; else semBaseErro">
+                {{ es.erroM3 | number:'1.2-2' }} <small>%</small>
+              </ng-container>
+              <ng-template #semBaseErro>—</ng-template>
+            </h3>
+            <span class="kpi-subtext" *ngIf="es.erroGJ !== null">Em GJ: {{ es.erroGJ | number:'1.2-2' }}%</span>
+            <span class="kpi-subtext" *ngIf="es.erroM3 === null">Sem consumo nas saídas para calcular o erro.</span>
+            <span class="kpi-subtext">Diferença média: {{ es.diferencaMediaM3 | number:'1.1-1' }} m³/dia</span>
+          </ng-container>
+          <ng-template #semResumoES>
+            <h3 class="kpi-value">—</h3>
+          </ng-template>
+        </ng-container>
+
       </div>
       <div class="kpi-icon">
-        <nb-icon icon="trending-up" pack="eva"></nb-icon>
+        <nb-icon [icon]="modoKpi === 'ENTRADA_SAIDA' ? 'swap-outline' : 'trending-up'" pack="eva"></nb-icon>
       </div>
     </div>
 
-    <!-- Clientes / Registos -->
+    <!-- Estações / Leituras -->
     <div class="card-kpi kpi-green">
       <div class="kpi-info">
-        <span class="kpi-title">Estações / Registos</span>
-        <h3 class="kpi-value">{{ totalClientes }} <small>cli.</small></h3>
-        <span class="kpi-subtext">{{ totalRegistos }} leituras</span>
+        <span class="kpi-title">Estações / Leituras</span>
+        <h3 class="kpi-value">{{ estacoesNoFiltro }} <small>{{ estacoesNoFiltro === 1 ? 'estação' : 'estações' }}</small></h3>
+        <span class="kpi-subtext">{{ estacoesComDados }} com dados · {{ totalRegistos }} leituras</span>
       </div>
       <div class="kpi-icon">
         <nb-icon icon="people" pack="eva"></nb-icon>
@@ -74,7 +163,7 @@
   </div>
 
   <!-- 1.1 TOGGLE PARA KPIS AVANÇADOS -->
-  <div class="advanced-kpis-toggle mb-3">
+  <div class="advanced-kpis-toggle">
     <button nbButton size="small" status="basic" (click)="showAdvancedKpis = !showAdvancedKpis">
       <nb-icon [icon]="showAdvancedKpis ? 'chevron-up-outline' : 'chevron-down-outline'" pack="eva"></nb-icon>
       {{ showAdvancedKpis ? 'Ocultar KPIs Avançados' : 'Ver KPIs Avançados' }}
@@ -82,18 +171,18 @@
   </div>
 
   <!-- 1.2 PAINEL DE KPIS AVANÇADOS -->
-  <nb-card class="kpi-strip mb-4" *ngIf="showAdvancedKpis">
+  <nb-card class="kpi-strip" *ngIf="showAdvancedKpis">
     <nb-card-body>
       <div class="kpi-strip-grid">
 
         <div class="kpi-strip-item">
           <nb-icon icon="swap-outline" pack="eva" status="basic"></nb-icon>
           <div class="kpi-strip-info">
-            <span class="kpi-strip-label">Variação vs Anterior</span>
+            <span class="kpi-strip-label">{{ modoKpi === 'COMPARACAO' ? 'Período 2 vs Período 1' : 'Variação vs Anterior' }}</span>
             <strong class="kpi-strip-value" [class.text-success]="variacaoPercentual !== null && variacaoPercentual < 0" [class.text-danger]="variacaoPercentual !== null && variacaoPercentual > 0" *ngIf="variacaoPercentual !== null">
               {{ variacaoPercentual > 0 ? '+' : '' }}{{ variacaoPercentual | number:'1.1-1' }}%
             </strong>
-            <strong class="kpi-strip-value muted" *ngIf="variacaoPercentual === null">Dados insuficientes</strong>
+            <strong class="kpi-strip-value muted" *ngIf="variacaoPercentual === null">{{ modoKpi === 'COMPARACAO' ? 'Dados insuficientes' : 'Só nas comparações' }}</strong>
           </div>
         </div>
 
@@ -123,7 +212,7 @@
         <div class="kpi-strip-item">
           <nb-icon icon="checkmark-circle-outline" pack="eva" [status]="dataQualityScore >= 90 ? 'success' : (dataQualityScore >= 70 ? 'warning' : 'danger')"></nb-icon>
           <div class="kpi-strip-info">
-            <span class="kpi-strip-label">Qualidade de Dados</span>
+            <span class="kpi-strip-label" title="Dias com leitura ÷ (dias decorridos × estações)">Qualidade de Dados</span>
             <strong class="kpi-strip-value">{{ dataQualityScore | number:'1.0-0' }}%</strong>
           </div>
         </div>
@@ -152,16 +241,18 @@
   </nb-card>
 
   <!-- 2. PAINEL DE FILTROS -->
-  <nb-card class="filter-panel mb-4">
+  <nb-card class="filter-panel">
     <nb-card-body>
-      <div class="filter-grid">
 
-        <!-- Categoria -->
+      <!-- Linha principal: Categoria | Estação(ões) | Visão Temporal -->
+      <div class="filter-row filter-row-main">
+
         <div class="filter-control">
           <label class="label">Categoria</label>
           <nb-select
             placeholder="Selecione a Categoria"
             multiple
+            [disabled]="viewMode === 'ENTRADA_VS_SAIDA'"
             [ngModel]="selectedCategories"
             (ngModelChange)="onCategoriaSelecionadaChange($event)"
             fullWidth>
@@ -171,12 +262,12 @@
           </nb-select>
         </div>
 
-        <!-- Estação(ões) -->
         <div class="filter-control">
           <label class="label">Estação(ões)</label>
           <nb-select
             placeholder="Selecione a(s) Estação(ões)"
             multiple
+            [disabled]="viewMode === 'ENTRADA_VS_SAIDA'"
             [ngModel]="selectedClientIds"
             (ngModelChange)="onClienteSelecionadoChange($event)"
             fullWidth>
@@ -187,8 +278,7 @@
           </nb-select>
         </div>
 
-        <!-- Visão Temporal -->
-        <div class="filter-control" style="flex: 1 1 220px;">
+        <div class="filter-control">
           <label class="label">Visão Temporal</label>
           <nb-select
             [(ngModel)]="viewMode"
@@ -204,71 +294,33 @@
           </nb-select>
         </div>
 
-        <!-- Período 1 e 2 (MONTHCOMPARATION) -->
-        <ng-container *ngIf="viewMode === 'MONTHCOMPARATION'">
-          <div class="filter-control filter-sm">
-            <label class="label">Mês 1</label>
-            <nb-select [(ngModel)]="selectedMonth" (selectedChange)="recarregarDadosDashboard()" fullWidth placeholder="Mês 1">
-              <nb-option *ngFor="let m of meses; let i = index; trackBy: trackByIndex" [value]="i">{{ m }}</nb-option>
-            </nb-select>
-          </div>
+      </div>
 
-          <div class="filter-control filter-sm">
-            <label class="label">Ano 1</label>
-            <nb-select [(ngModel)]="selectedYear" (selectedChange)="recarregarDadosDashboard()" fullWidth placeholder="Ano 1">
-              <nb-option *ngFor="let y of anos" [value]="y">{{ y }}</nb-option>
-            </nb-select>
-          </div>
+      <!-- Linha do período (depende da visão) -->
+      <div class="filter-row filter-row-period" *ngIf="viewMode === 'MONTHLY' || viewMode === 'YEARLY' || viewMode === 'RANGE' || viewMode === 'ENTRADA_VS_SAIDA'">
 
-          <div class="filter-control filter-sm">
-            <label class="label">Mês 2</label>
-            <nb-select [(ngModel)]="selectedMonth2" (selectedChange)="recarregarDadosDashboard()" fullWidth placeholder="Mês 2">
-              <nb-option *ngFor="let m of meses; let i = index; trackBy: trackByIndex" [value]="i">{{ m }}</nb-option>
-            </nb-select>
-          </div>
-
-          <div class="filter-control filter-sm">
-            <label class="label">Ano 2</label>
-            <nb-select [(ngModel)]="selectedYear2" (selectedChange)="recarregarDadosDashboard()" fullWidth placeholder="Ano 2">
-              <nb-option *ngFor="let y of anos" [value]="y">{{ y }}</nb-option>
-            </nb-select>
-          </div>
-        </ng-container>
-
-        <!-- Período 1 e 2 (YEARCOMPARATION) -->
-        <ng-container *ngIf="viewMode === 'YEARCOMPARATION'">
-          <div class="filter-control filter-sm">
-            <label class="label">Ano 1</label>
-            <nb-select [(ngModel)]="selectedYear" (selectedChange)="recarregarDadosDashboard()" fullWidth placeholder="Ano 1">
-              <nb-option *ngFor="let y of anos" [value]="y">{{ y }}</nb-option>
-            </nb-select>
-          </div>
-
-          <div class="filter-control filter-sm">
-            <label class="label">Ano 2</label>
-            <nb-select [(ngModel)]="selectedYear2" (selectedChange)="recarregarDadosDashboard()" fullWidth placeholder="Ano 2">
-              <nb-option *ngFor="let y of anos" [value]="y">{{ y }}</nb-option>
-            </nb-select>
-          </div>
-        </ng-container>
-
-        <!-- Mês (Exibido apenas em MONTHLY) -->
-        <div class="filter-control filter-sm" *ngIf="viewMode === 'MONTHLY'">
+        <div class="filter-control" *ngIf="viewMode === 'MONTHLY'">
           <label class="label">Mês</label>
           <nb-select [(ngModel)]="selectedMonth" (selectedChange)="recarregarDadosDashboard()" fullWidth placeholder="Mês">
             <nb-option *ngFor="let m of meses; let i = index; trackBy: trackByIndex" [value]="i">{{ m }}</nb-option>
           </nb-select>
         </div>
 
-        <!-- Ano (Exibido em MONTHLY ou YEARLY) -->
-        <div class="filter-control filter-sm" *ngIf="viewMode === 'MONTHLY' || viewMode === 'YEARLY'">
+        <div class="filter-control" *ngIf="viewMode === 'ENTRADA_VS_SAIDA'">
+          <label class="label">Mês (opcional)</label>
+          <nb-select [(ngModel)]="selectedMonth" (selectedChange)="recarregarDadosDashboard()" fullWidth placeholder="Todo o ano">
+            <nb-option [value]="null">Todo o ano</nb-option>
+            <nb-option *ngFor="let m of meses; let i = index; trackBy: trackByIndex" [value]="i">{{ m }}</nb-option>
+          </nb-select>
+        </div>
+
+        <div class="filter-control" *ngIf="viewMode === 'MONTHLY' || viewMode === 'YEARLY' || viewMode === 'ENTRADA_VS_SAIDA'">
           <label class="label">Ano</label>
           <nb-select [(ngModel)]="selectedYear" (selectedChange)="recarregarDadosDashboard()" fullWidth placeholder="Ano">
             <nb-option *ngFor="let y of anos" [value]="y">{{ y }}</nb-option>
           </nb-select>
         </div>
 
-        <!-- Data Início / Fim (Exibido apenas em RANGE) -->
         <ng-container *ngIf="viewMode === 'RANGE'">
           <div class="filter-control">
             <label class="label">Data Início</label>
@@ -276,8 +328,10 @@
               nbInput
               fullWidth
               type="date"
-              [(ngModel)]="startDate"
-              (change)="recarregarDadosDashboard()"
+              [ngModel]="startDate"
+              [attr.max]="endDate"
+              (ngModelChange)="onDataInicioChange($event)"
+              [class.input-invalido]="intervaloInvalido"
               class="full-width-input" />
           </div>
 
@@ -287,43 +341,162 @@
               nbInput
               fullWidth
               type="date"
-              [(ngModel)]="endDate"
-              (change)="recarregarDadosDashboard()"
+              [ngModel]="endDate"
+              [attr.min]="startDate"
+              (ngModelChange)="onDataFimChange($event)"
+              [class.input-invalido]="intervaloInvalido"
               class="full-width-input" />
           </div>
         </ng-container>
 
+        <p class="filter-note" *ngIf="viewMode === 'ENTRADA_VS_SAIDA'">
+          <nb-icon icon="info-outline" pack="eva"></nb-icon>
+          Esta visão usa sempre todas as estações: Categoria e Estação ficam desativadas.
+        </p>
+
       </div>
 
-      <!-- SEÇÃO DE INPUTS MENSAIS DE ENERGY CONTENT (Visão Anual) -->
-      <div *ngIf="viewMode === 'YEARLY'" class="yearly-energy-section mt-4 pt-3">
-        <div class="yearly-section-header mb-3">
-          <label class="label font-weight-bold text-primary mb-0">
-            <nb-icon icon="flash-outline" pack="eva"></nb-icon>
-            Energy Content Mensal (MJ/Sm³)
-          </label>
-        </div>
-
-        <div class="monthly-energy-grid">
-          <div class="filter-control filter-sm" *ngFor="let m of meses; let i = index; trackBy: trackByIndex">
-            <label class="label">{{ m }}</label>
-            <input
-              nbInput
-              type="number"
-              step="0.01"
-              [(ngModel)]="monthlyEnergyContent[i]"
-              (ngModelChange)="onEnergyContentChange()"
-              placeholder="Ex: 38.0"
-              class="full-width-input input-sm" />
+      <!-- Comparação Mensal: dois períodos agrupados -->
+      <div class="filter-row filter-row-comparison" *ngIf="viewMode === 'MONTHCOMPARATION'">
+        <div class="period-group">
+          <span class="period-group-title">Período 1</span>
+          <div class="period-group-fields">
+            <div class="filter-control">
+              <label class="label">Mês 1</label>
+              <nb-select [(ngModel)]="selectedMonth" (selectedChange)="recarregarDadosDashboard()" fullWidth placeholder="Mês 1">
+                <nb-option *ngFor="let m of meses; let i = index; trackBy: trackByIndex" [value]="i">{{ m }}</nb-option>
+              </nb-select>
+            </div>
+            <div class="filter-control">
+              <label class="label">Ano 1</label>
+              <nb-select [(ngModel)]="selectedYear" (selectedChange)="recarregarDadosDashboard()" fullWidth placeholder="Ano 1">
+                <nb-option *ngFor="let y of anos" [value]="y">{{ y }}</nb-option>
+              </nb-select>
+            </div>
           </div>
         </div>
+
+        <div class="period-group">
+          <span class="period-group-title">Período 2</span>
+          <div class="period-group-fields">
+            <div class="filter-control">
+              <label class="label">Mês 2</label>
+              <nb-select [(ngModel)]="selectedMonth2" (selectedChange)="recarregarDadosDashboard()" fullWidth placeholder="Mês 2">
+                <nb-option *ngFor="let m of meses; let i = index; trackBy: trackByIndex" [value]="i">{{ m }}</nb-option>
+              </nb-select>
+            </div>
+            <div class="filter-control">
+              <label class="label">Ano 2</label>
+              <nb-select [(ngModel)]="selectedYear2" (selectedChange)="recarregarDadosDashboard()" fullWidth placeholder="Ano 2">
+                <nb-option *ngFor="let y of anos" [value]="y">{{ y }}</nb-option>
+              </nb-select>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Comparação Anual -->
+      <div class="filter-row filter-row-comparison" *ngIf="viewMode === 'YEARCOMPARATION'">
+        <div class="period-group">
+          <span class="period-group-title">Período 1</span>
+          <div class="period-group-fields">
+            <div class="filter-control">
+              <label class="label">Ano 1</label>
+              <nb-select [(ngModel)]="selectedYear" (selectedChange)="recarregarDadosDashboard()" fullWidth placeholder="Ano 1">
+                <nb-option *ngFor="let y of anos" [value]="y">{{ y }}</nb-option>
+              </nb-select>
+            </div>
+          </div>
+        </div>
+
+        <div class="period-group">
+          <span class="period-group-title">Período 2</span>
+          <div class="period-group-fields">
+            <div class="filter-control">
+              <label class="label">Ano 2</label>
+              <nb-select [(ngModel)]="selectedYear2" (selectedChange)="recarregarDadosDashboard()" fullWidth placeholder="Ano 2">
+                <nb-option *ngFor="let y of anos" [value]="y">{{ y }}</nb-option>
+              </nb-select>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Ações -->
+      <div class="filter-footer">
+        <button
+          nbButton
+          size="small"
+          status="basic"
+          appearance="outline"
+          [disabled]="!temFiltrosAtivos"
+          (click)="limparFiltros()">
+          <nb-icon icon="close-circle-outline" pack="eva"></nb-icon>
+          Limpar filtros
+        </button>
       </div>
 
     </nb-card-body>
   </nb-card>
 
+  <!-- 2.1 AVISOS -->
+  <div class="alerts-stack" *ngIf="intervaloInvalido || comparacaoPeriodosIguais || erroCarregamento || dadosTruncados || leiturasAnomalas > 0">
+    <nb-alert status="danger" *ngIf="intervaloInvalido">
+      A data de início tem de ser anterior ou igual à data de fim.
+    </nb-alert>
+
+    <nb-alert status="warning" *ngIf="comparacaoPeriodosIguais">
+      Os dois períodos selecionados são iguais, por isso a comparação não mostra diferenças. Escolha períodos diferentes.
+    </nb-alert>
+
+    <nb-alert status="danger" *ngIf="erroCarregamento">
+      {{ erroCarregamento }}
+    </nb-alert>
+
+    <nb-alert status="warning" *ngIf="dadosTruncados">
+      Foi atingido o limite de {{ LIMITE_REGISTOS | number }} registos: os dados mais recentes do período podem estar em falta e os totais ficam incompletos. Reduza o período ou o nº de estações.
+    </nb-alert>
+
+    <nb-alert status="info" *ngIf="leiturasAnomalas > 0">
+      {{ leiturasAnomalas }} {{ leiturasAnomalas === 1 ? 'leitura foi ignorada' : 'leituras foram ignoradas' }} porque o contador recuou sem sinal de rollover (possível substituição ou correção de contador).
+    </nb-alert>
+  </div>
+
+  <!-- 2.2 ENERGY CONTENT MENSAL (Visão Anual) -->
+  <nb-card class="energy-card" *ngIf="viewMode === 'YEARLY'">
+    <nb-card-header class="card-header-flex">
+      <div class="header-title">
+        <nb-icon icon="flash-outline" pack="eva" status="warning"></nb-icon>
+        <span>Energy Content Mensal (MJ/Sm³)</span>
+      </div>
+      <div class="header-actions">
+        <button nbButton size="tiny" status="primary" appearance="outline" (click)="aplicarEnergyContentATodos()">
+          Aplicar a todos
+        </button>
+        <button nbButton size="tiny" status="basic" appearance="ghost" (click)="limparEnergyContentMensal()">
+          Limpar
+        </button>
+      </div>
+    </nb-card-header>
+    <nb-card-body>
+      <div class="monthly-energy-grid">
+        <div class="filter-control" *ngFor="let m of meses; let i = index; trackBy: trackByIndex">
+          <label class="label">{{ m }}</label>
+          <input
+            nbInput
+            type="number"
+            step="0.01"
+            [(ngModel)]="monthlyEnergyContent[i]"
+            (ngModelChange)="onEnergyContentChange()"
+            placeholder="Ex: 38.0"
+            class="full-width-input input-sm" />
+        </div>
+      </div>
+    </nb-card-body>
+  </nb-card>
+
   <!-- 3. DISTRIBUIÇÃO RELATIVA E RANKING -->
-  <div class="charts-row-split mb-4" *ngIf="(isAllClientsSelected || isMultiplosClientesSelecionados) && viewMode !== 'ENTRADA_VS_SAIDA'">
+  <div class="charts-row-split" *ngIf="mostrarRanking">
 
     <!-- Distribuição % (Donut) -->
     <nb-card [nbSpinner]="spinnerVisible" nbSpinnerStatus="primary" class="card-donut-custom">
@@ -344,7 +517,7 @@
           <!-- Lado Esquerdo: Gráfico Donut -->
           <div class="donut-wrapper">
             <ngx-charts-pie-chart
-              [scheme]="colorSchemeDonut"
+              [scheme]="colorSchemeTop"
               [results]="topConsumersData"
               [doughnut]="true"
               [arcWidth]="0.25"
@@ -356,7 +529,7 @@
             </ngx-charts-pie-chart>
           </div>
 
-          <!-- Lado Direito: Lista de Estações Otimizada -->
+          <!-- Lado Direito: Lista de Estações -->
           <div class="client-progress-list">
             <div
               *ngFor="let item of topConsumersData; let i = index; trackBy: trackByName"
@@ -367,14 +540,14 @@
 
               <div class="progress-info">
                 <div class="client-name-group">
-                  <span class="color-indicator" [style.background-color]="colorSchemeDonut.domain[i]"></span>
+                  <span class="color-indicator" [style.background-color]="colorSchemeTop.domain[i]"></span>
                   <span class="client-name" [title]="item.name">{{ item.name }}</span>
                 </div>
                 <span class="client-percent">{{ (item.percent || 0) | number:'1.1-1' }}%</span>
               </div>
 
               <div class="progress-bar-bg">
-                <div class="progress-bar-fill" [style.width.%]="item.percent || 0" [style.background-color]="colorSchemeDonut.domain[i]"></div>
+                <div class="progress-bar-fill" [style.width.%]="item.percent || 0" [style.background-color]="colorSchemeTop.domain[i]"></div>
               </div>
             </div>
           </div>
@@ -398,7 +571,7 @@
 
         <div class="chart-box-bar" *ngIf="topConsumersData.length > 0">
           <ngx-charts-bar-horizontal
-            [scheme]="colorSchemeDonut"
+            [scheme]="colorSchemeTop"
             [results]="topConsumersData"
             [xAxis]="true"
             [yAxis]="true"
@@ -418,13 +591,13 @@
 
   </div>
 
-  <p class="chart-hint mb-4" *ngIf="(isAllClientsSelected || isMultiplosClientesSelecionados) && viewMode !== 'ENTRADA_VS_SAIDA'">
+  <p class="chart-hint" *ngIf="mostrarRanking">
     <nb-icon icon="info-outline" pack="eva"></nb-icon>
-    Clica numa Estação na lista, no donut ou na barra para veres a evolução detalhada apenas dessa Estação.
+    Clica numa Estação na lista, no donut ou na barra para veres a evolução detalhada apenas dessa Estação. "Outras" agrupa as restantes estações.
   </p>
 
   <!-- 4. EVOLUÇÃO TEMPORAL (LINHA DO TEMPO) -->
-  <div class="charts-row-split mb-4">
+  <div class="charts-row-split">
 
     <!-- Evolução em m³ -->
     <nb-card class="main-chart-card" [nbSpinner]="spinnerVisible" nbSpinnerStatus="primary">
@@ -435,12 +608,12 @@
         </div>
       </nb-card-header>
       <nb-card-body class="chart-container-full">
-        <div class="empty-state" *ngIf="!spinnerVisible && areaChartDataM3[0]?.series?.length === 0">
+        <div class="empty-state" *ngIf="!spinnerVisible && areaChartDataM3[0]?.series?.length === 0 && !(areaChartDataM3[1]?.series?.length > 0)">
           <nb-icon icon="inbox-outline" pack="eva"></nb-icon>
           <p>Sem dados de volume para o período.</p>
         </div>
 
-        <div class="chart-box" *ngIf="areaChartDataM3[0]?.series?.length > 0">
+        <div class="chart-box" *ngIf="areaChartDataM3[0]?.series?.length > 0 || areaChartDataM3[1]?.series?.length > 0">
           <ngx-charts-line-chart
             [scheme]="colorSchemeLinhas"
             [results]="areaChartDataM3"
@@ -474,12 +647,12 @@
         </div>
       </nb-card-header>
       <nb-card-body class="chart-container-full">
-        <div class="empty-state" *ngIf="!spinnerVisible && areaChartDataGJ[0]?.series?.length === 0">
+        <div class="empty-state" *ngIf="!spinnerVisible && areaChartDataGJ[0]?.series?.length === 0 && !(areaChartDataGJ[1]?.series?.length > 0)">
           <nb-icon icon="inbox-outline" pack="eva"></nb-icon>
           <p>Sem dados de energia para o período.</p>
         </div>
 
-        <div class="chart-box" *ngIf="areaChartDataGJ[0]?.series?.length > 0">
+        <div class="chart-box" *ngIf="areaChartDataGJ[0]?.series?.length > 0 || areaChartDataGJ[1]?.series?.length > 0">
           <ngx-charts-line-chart
             [scheme]="colorSchemeLinhas"
             [results]="areaChartDataGJ"
