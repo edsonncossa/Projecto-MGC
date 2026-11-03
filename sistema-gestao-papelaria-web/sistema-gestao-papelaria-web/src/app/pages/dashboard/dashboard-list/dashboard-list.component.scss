@@ -250,14 +250,14 @@ input[type="date"].full-width-input {
   .filter-grid {
     display: flex;
     flex-wrap: wrap;
-    gap: 12px; /* Espaçamento otimizado */
+    gap: 16px; /* Espaçamento otimizado */
     align-items: flex-end;
 
     .filter-control {
       display: flex;
       flex-direction: column;
-      flex: 1 1 150px;
-      min-width: 130px;
+      flex: 1 1 180px;
+      min-width: 150px;
 
       .label { 
         font-size: 0.78rem; 
@@ -271,8 +271,8 @@ input[type="date"].full-width-input {
 
     /* Campos compactos para meses e anos (evita quebra de linha) */
     .filter-sm {
-      flex: 1 1 110px;
-      min-width: 100px;
+      flex: 1 1 120px;
+      min-width: 110px;
     }
   }
 }
@@ -397,3 +397,46 @@ nb-card {
 .yearly-energy-section { border-top: 1px dashed #cbd5e1; margin-top: 1.5rem; padding-top: 1.25rem; }
 .chart-hint { display: flex; align-items: center; gap: 8px; font-size: 0.8rem; color: #64748b; background-color: #f8fafc; padding: 8px 12px; border-radius: 8px; border: 1px solid #e2e8f0; }
 .empty-state { text-align: center; padding: 60px 10px; color: #94a3b8; nb-icon { font-size: 44px; margin-bottom: 8px; } p { margin: 0; font-size: 0.9rem; } }
+
+/* ===== ESTILOS EM FALTA (já usados no HTML) ===== */
+.card-kpi .kpi-breakdown {
+  margin-top: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: 72px;
+  overflow-y: auto;
+
+  .kpi-breakdown-item {
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+    font-size: 0.72rem;
+    opacity: 0.92;
+  }
+  .kpi-breakdown-name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 110px;
+  }
+  .kpi-breakdown-value { font-weight: 700; white-space: nowrap; }
+}
+
+.card-donut-custom .client-progress-list {
+  .client-name-group { display: flex; align-items: center; gap: 8px; min-width: 0; }
+  .color-indicator { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+  .client-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; color: #1e293b; }
+  .client-percent { font-weight: 700; color: #475569; margin-left: 8px; }
+}
+
+/* O gráfico de barras precisa de altura explícita, tal como os de linha */
+.chart-container-bar {
+  padding: 1.25rem;
+  .chart-box-bar {
+    width: 100%;
+    height: 300px;
+    display: block;
+    position: relative;
+  }
+}

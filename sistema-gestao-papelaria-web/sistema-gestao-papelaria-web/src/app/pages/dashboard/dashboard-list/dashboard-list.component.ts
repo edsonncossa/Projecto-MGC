@@ -1,4 +1,4 @@
-import { Component, OnInit, ChangeDetectorRef, ChangeDetectionStrategy } from '@angular/core';
+import { Component, OnInit, OnDestroy, ChangeDetectorRef, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { NgxChartsModule } from '@swimlane/ngx-charts';
@@ -8,21 +8,25 @@ import { MatIconModule } from '@angular/material/icon';
 import { ClientService } from '@app/services/client.service';
 import { ConsumptionService } from '@app/services/consumption.service';
 import { Client } from '@app/shared/models/client';
-import { finalize } from 'rxjs/operators';
-import { forkJoin } from 'rxjs';
+import { finalize, debounceTime } from 'rxjs/operators';
+import { forkJoin, Subject, Subscription } from 'rxjs';
 import { curveMonotoneX } from 'd3-shape';
 
-import { 
-  NbCardModule, 
-  NbIconModule, 
-  NbSelectModule, 
-  NbListModule, 
+import {
+  NbCardModule,
+  NbIconModule,
+  NbSelectModule,
+  NbListModule,
   NbButtonModule,
+  NbInputModule,
   NbSpinnerModule,
   NbDatepickerModule,
   NbToastrService
 } from '@nebular/theme';
 import { CertificadoDashboardDTO, CertificadoService } from '@app/services/certificado.service';
+
+type ViewMode = 'MONTHLY' | 'YEARLY' | 'RANGE' | 'MONTHCOMPARATION' | 'YEARCOMPARATION' | 'ENTRADA_VS_SAIDA';
+type PontoSerie = { name: string; value: number };
 
 @Component({
   selector: 'app-dashboard-list',
@@ -38,6 +42,7 @@ import { CertificadoDashboardDTO, CertificadoService } from '@app/services/certi
     NbCardModule,
     NbButtonModule,
     NbIconModule,
+    NbInputModule,
     NbSelectModule,
     NbListModule,
     NbSpinnerModule,
@@ -45,47 +50,55 @@ import { CertificadoDashboardDTO, CertificadoService } from '@app/services/certi
     NgxChartsModule
   ]
 })
-export class DashboardListComponent implements OnInit {
+export class DashboardListComponent implements OnInit, OnDestroy {
   isLoading = false;
   spinnerVisible = false;
 
+  /** Muda para false se quiseres desligar por completo as animações dos gráficos. */
+  readonly chartAnimations = true;
+
   readonly CONSTANTE_ENERGIA_STD = 1.05491;
-  energyContentMjSm3: number | null = null; 
-  totalRegistos: number = 0;
-  
+  readonly DEFAULT_ROLLOVER_LIMIT = 99999999;
+
+  energyContentMjSm3: number | null = null;
+  totalRegistos = 0;
+
   areaChartDataM3: any[] = [{ name: 'Consumo Real (m³)', series: [] }];
   areaChartDataGJ: any[] = [{ name: 'Energia Real (GJ)', series: [] }];
-  
+
   selectedClientIds: (number | string)[] = ['ALL'];
-  viewMode: 'MONTHLY' | 'YEARLY' | 'RANGE' | 'MONTHCOMPARATION' | 'YEARCOMPARATION' | 'ENTRADA_VS_SAIDA' | null = null;
+  viewMode: ViewMode | null = null;
   selectedMonth2: number | null = null;
-  selectedYear2: number | null = null;  
+  selectedYear2: number | null = null;
   startDate: Date | null = null;
   endDate: Date | null = null;
-  selectedMonth: number | null = null; 
-  selectedYear: number | null = null; 
+  selectedMonth: number | null = null;
+  selectedYear: number | null = null;
 
   meses = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
   anos = [2024, 2025, 2026];
 
-  totalVolumeConsumido: number = 0;   
-  energyStd: number = 0;              
-  totalEnergiaConsumidaGJ: number = 0;
-  
-  mediaConsumoDiarioM3: number = 0;   
-  mediaConsumoDiarioGJ: number = 0;   
-  totalClientes: number = 0;
-  selectedCategories: (string)[] = ['ALL'];
+  totalVolumeConsumido = 0;
+  energyStd = 0;
+  totalEnergiaConsumidaGJ = 0;
 
-  colorScheme: any = { domain: ['#3366ff', '#00d68f', '#ffaa00', '#0095ff', '#a16eff'] };
-  colorSchemeGJ: any = { domain: ['#ffaa00', '#ff3d71', '#3366ff', '#00d68f', '#a16eff'] };
+  mediaConsumoDiarioM3 = 0;
+  mediaConsumoDiarioGJ = 0;
+  totalClientes = 0;
+  selectedCategories: string[] = ['ALL'];
+
   colorSchemeDonut: any = { domain: ['#00d68f', '#3366ff', '#ffaa00', '#32dbf0', '#ff3d71'] };
+  /** Esquema usado nos gráficos de linha (estável: só muda quando muda o nº de séries). */
+  colorSchemeLinhas: any = this.colorSchemeDonut;
 
   topConsumersData: { name: string; value: number; percent?: number }[] = [];
   topConsumersDataGJ: { name: string; value: number }[] = [];
   listaClientes: Client[] = [];
+  /** Lista já filtrada por categoria (propriedade, não getter, para manter referência estável). */
+  listaClientesFiltradaPorCategoria: Client[] = [];
+  private clientesPorId = new Map<number, Client>();
+
   monthlyEnergyContent: (number | null)[] = new Array(12).fill(null);
-  readonly DEFAULT_ROLLOVER_LIMIT = 99999999;
 
   showAdvancedKpis = false;
   tarifaPorM3: number | null = null;
@@ -94,15 +107,21 @@ export class DashboardListComponent implements OnInit {
   totalVolumeAnterior: number | null = null;
   picoConsumo: { value: number; label: string } | null = null;
   minimoConsumo: { value: number; label: string } | null = null;
-  eficienciaEnergetica: number = 0;
-  dataQualityScore: number = 0;
-  custoEstimado: number = 0;
+  eficienciaEnergetica = 0;
+  dataQualityScore = 0;
+  custoEstimado = 0;
   percentualMeta: number | null = null;
-  volumePorCliente: { name: string; value: number }[] = [];
+  volumePorCliente: PontoSerie[] = [];
 
+  /** Linhas de referência (propriedades estáveis, evitam redesenhos constantes do ngx-charts). */
+  referenciasM3: PontoSerie[] = [];
+  referenciasGJ: PontoSerie[] = [];
 
   readonly curveSuave = curveMonotoneX;
   entradaAtiva: any[] = [];
+
+  private energyChangeSubject = new Subject<void>();
+  private energySubscription: Subscription;
 
   constructor(
     private clientService: ClientService,
@@ -110,23 +129,59 @@ export class DashboardListComponent implements OnInit {
     private consumptionService: ConsumptionService,
     private cdr: ChangeDetectorRef,
     private toastrService: NbToastrService,
-  ) {}
+  ) {
+    // Debounce de 300ms. NÃO usar distinctUntilChanged aqui: o Subject<void> emite sempre
+    // "undefined" e só deixaria passar a primeira alteração.
+    this.energySubscription = this.energyChangeSubject.pipe(
+      debounceTime(300)
+    ).subscribe(() => {
+      this.recalcularEnergiaComNovoEnergyContent();
+      this.cdr.markForCheck();
+    });
+  }
 
   ngOnInit(): void {
     this.resetMetrics();
     this.carregarListaClientes();
   }
 
+  ngOnDestroy(): void {
+    this.energySubscription?.unsubscribe();
+  }
+
+  // ===================== TRACKBY / FORMATADORES =====================
+
+  trackByName = (_: number, item: { name: string }) => item.name;
+  trackByClientId = (_: number, c: Client) => c.id;
+  trackByIndex = (i: number) => i;
+
+  /** Arrow function: mantém o `this` e uma referência estável para o ngx-charts. */
+  formatarDataLabel = (val: number): string => {
+    if (val >= 1000000) return (val / 1000000).toFixed(1) + 'M';
+    if (val >= 1000) return (val / 1000).toFixed(0) + 'k';
+    return val.toLocaleString();
+  };
+
+  // ===================== CARREGAMENTO INICIAL =====================
+
   carregarListaClientes(): void {
     this.clientService.findAll(0, 1000, 'firstName', 'asc', '').subscribe({
       next: (res: any) => {
-        this.listaClientes = res?._embedded?.clientDTOList || res?._embedded?.clients || res?.content || [];
+        this.listaClientes = this.extrairLista(res);
+        this.clientesPorId = new Map(
+          this.listaClientes
+            .filter(c => c.id !== undefined && c.id !== null)
+            .map(c => [Number(c.id), c] as [number, Client])
+        );
         this.totalClientes = this.listaClientes.length;
+        this.atualizarListaClientesFiltrada();
         this.cdr.markForCheck();
       },
       error: (err) => console.error('Erro ao carregar clientes:', err)
     });
   }
+
+  // ===================== EVENTOS DE FILTROS =====================
 
   onViewModeChange(): void {
     if (!this.viewMode) return;
@@ -142,77 +197,50 @@ export class DashboardListComponent implements OnInit {
   }
 
   onCategoriaSelecionadaChange(categoriasSelecionadas: string[] | string | null): void {
-    let cats: string[] = Array.isArray(categoriasSelecionadas)
+    const cats: string[] = Array.isArray(categoriasSelecionadas)
       ? categoriasSelecionadas
       : (categoriasSelecionadas !== null && categoriasSelecionadas !== undefined ? [categoriasSelecionadas] : []);
 
-    if (cats.length === 0) {
-      this.selectedCategories = ['ALL'];
-    } else {
-      const tinhaAllAntes = this.selectedCategories.includes('ALL');
-      const temAllAgora = cats.includes('ALL');
-
-      if (temAllAgora && !tinhaAllAntes) {
-        this.selectedCategories = ['ALL'];
-      } else if (temAllAgora && tinhaAllAntes && cats.length > 1) {
-        this.selectedCategories = cats.filter(c => c !== 'ALL');
-      } else if (temAllAgora && cats.length === 1) {
-        this.selectedCategories = ['ALL'];
-      } else {
-        this.selectedCategories = cats;
-      }
-    }
+    this.selectedCategories = this.normalizarSelecaoComAll(cats, this.selectedCategories) as string[];
+    this.atualizarListaClientesFiltrada();
 
     if (this.isFiltrosCompletos()) {
       this.recarregarDadosDashboard();
     } else {
       this.resetMetrics();
     }
-    
     this.cdr.markForCheck();
   }
 
-onClienteSelecionadoChange(idsSelecionados: (number | string)[] | number | string | null): void {
-    // Garantir que trabalhamos sempre com um array
-    let ids: (number | string)[] = Array.isArray(idsSelecionados)
+  onClienteSelecionadoChange(idsSelecionados: (number | string)[] | number | string | null): void {
+    const ids: (number | string)[] = Array.isArray(idsSelecionados)
       ? idsSelecionados
       : (idsSelecionados !== null && idsSelecionados !== undefined ? [idsSelecionados] : []);
 
-    // Se nenhum item foi selecionado, fallback automático para 'ALL'
-    if (ids.length === 0) {
-      this.selectedClientIds = ['ALL'];
-    } else {
-      const tinhaAllAntes = this.selectedClientIds.includes('ALL');
-      const temAllAgora = ids.includes('ALL');
+    this.selectedClientIds = this.normalizarSelecaoComAll(ids, this.selectedClientIds);
 
-      // CASO 1: O utilizador acabou de clicar em 'ALL' (não estava antes, está agora)
-      // -> limpa tudo e deixa só 'ALL'
-      if (temAllAgora && !tinhaAllAntes) {
-        this.selectedClientIds = ['ALL'];
-      }
-      // CASO 2: 'ALL' já estava selecionado e o utilizador adicionou um cliente específico
-      // -> remove 'ALL' e mantém apenas os específicos
-      else if (temAllAgora && tinhaAllAntes && ids.length > 1) {
-        this.selectedClientIds = ids.filter(id => id !== 'ALL');
-      }
-      // CASO 3: 'ALL' está presente e é o único (já estava e continua só)
-      else if (temAllAgora && ids.length === 1) {
-        this.selectedClientIds = ['ALL'];
-      }
-      // CASO 4: Nenhum 'ALL' selecionado - apenas clientes específicos
-      else {
-        this.selectedClientIds = ids;
-      }
-    }
-
-    // Disparar o recarregamento dos dados se os filtros estiverem completos
     if (this.isFiltrosCompletos()) {
       this.recarregarDadosDashboard();
     } else {
       this.resetMetrics();
     }
-    
     this.cdr.markForCheck();
+  }
+
+  /** Lógica partilhada da opção "ALL" nos multi-selects. */
+  private normalizarSelecaoComAll(
+    novos: (number | string)[],
+    anteriores: (number | string)[]
+  ): (number | string)[] {
+    if (novos.length === 0) return ['ALL'];
+
+    const tinhaAllAntes = anteriores.includes('ALL');
+    const temAllAgora = novos.includes('ALL');
+
+    if (temAllAgora && !tinhaAllAntes) return ['ALL'];
+    if (temAllAgora && tinhaAllAntes && novos.length > 1) return novos.filter(v => v !== 'ALL');
+    if (temAllAgora && novos.length === 1) return ['ALL'];
+    return novos;
   }
 
   private getClientIdsSelecionados(): number[] {
@@ -223,17 +251,15 @@ onClienteSelecionadoChange(idsSelecionados: (number | string)[] | number | strin
   }
 
   onEnergyContentChange(): void {
-    this.recalcularEnergiaComNovoEnergyContent();
+    this.energyChangeSubject.next();
   }
 
   onTarifaChange(): void {
     this.recalcularKpisDerivados();
-    this.cdr.markForCheck();
   }
 
   onMetaChange(): void {
     this.recalcularKpisDerivados();
-    this.cdr.markForCheck();
   }
 
   onHoverCliente(nome: string): void {
@@ -251,74 +277,49 @@ onClienteSelecionadoChange(idsSelecionados: (number | string)[] | number | strin
     const cliente = this.listaClientes.find(c => c.firstName === nome);
     if (!cliente || cliente.id === undefined || cliente.id === null) return;
 
-    this.selectedClientIds = [cliente.id];
-    this.onClienteSelecionadoChange(this.selectedClientIds);
+    this.onClienteSelecionadoChange([cliente.id]);
     this.toastrService.info(`A filtrar por ${cliente.firstName}`, 'Cliente selecionado', { duration: 2500 });
   }
 
-  get referenciasM3(): { name: string; value: number }[] {
-    return this.mediaConsumoDiarioM3 > 0
-      ? [{ name: 'Média', value: Number(this.mediaConsumoDiarioM3.toFixed(2)) }]
-      : [];
+  // ===================== CATEGORIAS =====================
+
+  private get incluiEntradas(): boolean {
+    return this.selectedCategories.includes('ALL') || this.selectedCategories.includes('ENTRADAS');
   }
 
-  get referenciasGJ(): { name: string; value: number }[] {
-    return this.mediaConsumoDiarioGJ > 0
-      ? [{ name: 'Média', value: Number(this.mediaConsumoDiarioGJ.toFixed(2)) }]
-      : [];
+  private get incluiSaidas(): boolean {
+    return this.selectedCategories.includes('ALL') || this.selectedCategories.includes('SAIDAS');
   }
 
-  /**
- * Retorna a lista de IDs de clientes correspondentes às categorias selecionadas.
- */
-getClientIdsPorCategoria(): number[] {
-  if (!this.listaClientes || this.listaClientes.length === 0) return [];
+  private atualizarListaClientesFiltrada(): void {
+    if (!this.listaClientes) {
+      this.listaClientesFiltradaPorCategoria = [];
+      return;
+    }
 
-  const incluiEntradas = this.selectedCategories.includes('ALL') || this.selectedCategories.includes('ENTRADAS');
-  const incluiSaidas = this.selectedCategories.includes('ALL') || this.selectedCategories.includes('SAIDAS');
+    if (this.incluiEntradas && this.incluiSaidas) {
+      this.listaClientesFiltradaPorCategoria = this.listaClientes;
+      return;
+    }
 
-  // Se ambas estão selecionadas (ou ALL), retorna todos os IDs
-  if (incluiEntradas && incluiSaidas) {
-    return this.listaClientes
+    this.listaClientesFiltradaPorCategoria = this.listaClientes.filter(c => {
+      const eEntrada = this.isClienteEntrada(c);
+      return (this.incluiEntradas && eEntrada) || (this.incluiSaidas && !eEntrada);
+    });
+  }
+
+  getClientIdsPorCategoria(): number[] {
+    return this.listaClientesFiltradaPorCategoria
       .map(c => Number(c.id))
       .filter(id => !isNaN(id));
   }
 
-  return this.listaClientes
-    .filter(c => {
-      const eEntrada = this.isClienteEntrada(c);
-      if (incluiEntradas && eEntrada) return true;
-      if (incluiSaidas && !eEntrada) return true;
-      return false;
-    })
-    .map(c => Number(c.id))
-    .filter(id => !isNaN(id));
-}
-
-get listaClientesFiltradaPorCategoria(): Client[] {
-    if (!this.listaClientes) return [];
-
-    const incluiEntradas = this.selectedCategories.includes('ALL') || this.selectedCategories.includes('ENTRADAS');
-    const incluiSaidas = this.selectedCategories.includes('ALL') || this.selectedCategories.includes('SAIDAS');
-
-    if (incluiEntradas && incluiSaidas) {
-      return this.listaClientes;
-    }
-
-    return this.listaClientes.filter(c => {
-      const eEntrada = this.isClienteEntrada(c);
-      return (incluiEntradas && eEntrada) || (incluiSaidas && !eEntrada);
-    });
-  }
-
-isFiltrosCompletos(): boolean {
-    // Validação base: Estações e Categorias preenchidas, e Visão Temporal selecionada
+  isFiltrosCompletos(): boolean {
     const hasValidClients = this.selectedClientIds && this.selectedClientIds.length > 0;
     const hasValidCategories = this.selectedCategories && this.selectedCategories.length > 0;
-    
+
     if (!hasValidClients || !hasValidCategories || !this.viewMode) return false;
 
-    // Validação específica por tipo de Visão Temporal
     switch (this.viewMode) {
       case 'MONTHLY':
         return this.selectedMonth !== null && this.selectedYear !== null;
@@ -327,184 +328,71 @@ isFiltrosCompletos(): boolean {
       case 'RANGE':
         return !!this.startDate && !!this.endDate;
       case 'MONTHCOMPARATION':
-        return this.selectedMonth !== null && 
-               this.selectedYear !== null && 
-               this.selectedMonth2 !== null && 
+        return this.selectedMonth !== null &&
+               this.selectedYear !== null &&
+               this.selectedMonth2 !== null &&
                this.selectedYear2 !== null;
       case 'YEARCOMPARATION':
         return this.selectedYear !== null && this.selectedYear2 !== null;
+      case 'ENTRADA_VS_SAIDA':
+        return true;
       default:
         return false;
     }
   }
 
-  /**
- * Determina se um cliente pertence à categoria ENTRADAS.
- * Estações como PRS1, PRS1 (M1), PRS1 (M2) são consideradas ENTRADAS.
- */
-isClienteEntrada(cliente: Client | undefined | null): boolean {
+  isClienteEntrada(cliente: Client | undefined | null): boolean {
     if (!cliente || !cliente.firstName) return false;
     const nomeTrim = cliente.firstName.trim().toUpperCase();
     return (
-    nomeTrim === 'PRS1' || nomeTrim.startsWith('PRS1 ') ||
-    nomeTrim === 'HPCMS3' || nomeTrim.startsWith('HPCMS3 ')
-  );
+      nomeTrim === 'PRS1' || nomeTrim.startsWith('PRS1 ') ||
+      nomeTrim === 'HPCMS3' || nomeTrim.startsWith('HPCMS3 ')
+    );
   }
 
- private processarComparacaoEntradaSaida(consumptions: any[]): void {
-  if (!Array.isArray(consumptions) || consumptions.length === 0) {
-    this.resetMetrics();
-    return;
-  }
+  // ===================== PEDIDOS AO BACKEND =====================
 
-  const consumptionsOrdenados = [...consumptions].sort((a, b) => {
-    return new Date(a.consumptionDate).getTime() - new Date(b.consumptionDate).getTime();
-  });
-
-  const mapEntradas = new Map<string, number>();
-  const mapSaidas = new Map<string, number>();
-  const previousReadingMap = new Map<number, number>();
-
-  let totalEntradaVol = 0;
-  let totalSaidaVol = 0;
-  let totalRegs = 0;
-
-  for (let i = 0; i < consumptionsOrdenados.length; i++) {
-    const c = consumptionsOrdenados[i];
-    if (!c) continue;
-
-    if (i === 0 && (c.energyContent || c.energy_content) && !this.energyContentMjSm3) {
-      this.energyContentMjSm3 = Number(c.energyContent || c.energy_content);
+  recarregarDadosDashboard(): void {
+    if (!this.selectedClientIds || this.selectedClientIds.length === 0 || !this.isFiltrosCompletos()) {
+      this.resetMetrics();
+      return;
     }
 
-    const clientIdNum = Number(c.clientId ?? c.client?.id ?? c.client_id ?? 0);
-    const cliente = this.listaClientes.find(cli => Number(cli.id) === clientIdNum);
-    
-    // Verifica se pertence à categoria Entradas (PRS1, HPCMS3, etc.)
-    const eEntrada = this.isClienteEntrada(cliente);
+    const clientIdsCategorizados = this.getClientIdsPorCategoria();
+    const clientIdsNumericos = this.getClientIdsSelecionados();
 
-    const rawReading = Number(c.volume ?? c.reading ?? c.correctedVolume ?? 0);
-    let deltaVolume = 0;
-
-    if (c.deltaVolume !== undefined && c.deltaVolume !== null && Number(c.deltaVolume) >= 0) {
-      deltaVolume = Number(c.deltaVolume);
+    let clientIdsParam: number[] | undefined;
+    if (this.isAllClientsSelected) {
+      clientIdsParam = clientIdsCategorizados.length > 0 ? clientIdsCategorizados : undefined;
     } else {
-      if (!previousReadingMap.has(clientIdNum)) {
-        previousReadingMap.set(clientIdNum, rawReading);
-        continue;
-      }
-      const prevReading = previousReadingMap.get(clientIdNum)!;
-      deltaVolume = this.calcularDeltaLeitura(
-        rawReading,
-        prevReading,
-        c.meterMaxCapacity ? Number(c.meterMaxCapacity) : this.DEFAULT_ROLLOVER_LIMIT
-      );
-    }
-    previousReadingMap.set(clientIdNum, rawReading);
-    totalRegs++;
-
-    // Chave de data estruturada (Mês ou Dia)
-    let dateKey = 'S/D';
-    if (c.consumptionDate) {
-      const dateVal = new Date(c.consumptionDate);
-      if (!isNaN(dateVal.getTime())) {
-        dateKey = (this.viewMode === 'YEARLY')
-          ? this.meses[dateVal.getMonth()]
-          : `${String(dateVal.getDate()).padStart(2, '0')}/${String(dateVal.getMonth() + 1).padStart(2, '0')}`;
-      }
+      const filtrados = clientIdsNumericos.filter(id => clientIdsCategorizados.includes(id));
+      clientIdsParam = filtrados.length > 0 ? filtrados : [-1];
     }
 
-    if (eEntrada) {
-      mapEntradas.set(dateKey, (mapEntradas.get(dateKey) || 0) + deltaVolume);
-      totalEntradaVol += deltaVolume;
-    } else {
-      mapSaidas.set(dateKey, (mapSaidas.get(dateKey) || 0) + deltaVolume);
-      totalSaidaVol += deltaVolume;
-    }
-  }
+    this.spinnerVisible = true;
+    this.cdr.markForCheck();
 
-  // Alinhar as datas de ambas as séries
-  const todasDatas = new Set([...mapEntradas.keys(), ...mapSaidas.keys()]);
-  const datasOrdenadas = Array.from(todasDatas).sort((a, b) => this.compararLabelsPeriodo(a, b));
+    const fim = () => {
+      this.spinnerVisible = false;
+      this.cdr.markForCheck();
+    };
 
-  const seriesEntradas = datasOrdenadas.map(d => ({ name: d, value: Number((mapEntradas.get(d) || 0).toFixed(2)) }));
-  const seriesSaidas = datasOrdenadas.map(d => ({ name: d, value: Number((mapSaidas.get(d) || 0).toFixed(2)) }));
-
-  // Definir as 2 linhas exatas para o gráfico
-  this.areaChartDataM3 = [
-    { name: '📥 Entradas (PRS1/HPCMS3)', series: seriesEntradas },
-    { name: '📤 Saídas (Demais Estações)', series: seriesSaidas }
-  ];
-
-  this.totalVolumeConsumido = Number((totalEntradaVol + totalSaidaVol).toFixed(2));
-  this.totalRegistos = totalRegs;
-
-  const totalDias = this.calcularPeriodosEsperados() || 1;
-  this.mediaConsumoDiarioM3 = this.totalVolumeConsumido / totalDias;
-
-  // Breakdown para os cards de métricas (mostrando a separação exata)
-  this.volumePorCliente = [
-    { name: '📥 Total Entradas', value: Number(totalEntradaVol.toFixed(2)) },
-    { name: '📤 Total Saídas', value: Number(totalSaidaVol.toFixed(2)) }
-  ];
-
-  this.recalcularEnergiaComNovoEnergyContent();
-}
-
-recarregarDadosDashboard(): void {
-if (!this.selectedClientIds || this.selectedClientIds.length === 0 || !this.isFiltrosCompletos()) {
-    this.resetMetrics();
-    return;
-  }
-
-  const clientIdsCategorizados = this.getClientIdsPorCategoria();
-  const isAll = this.isAllClientsSelected;
-  const clientIdsNumericos = this.getClientIdsSelecionados();
-
-  // Filtrar os IDs selecionados manualmente com base nas categorias ativas
-  let clientIdsParam: number[] | undefined;
-
-  if (isAll) {
-    // Se "Todas as Estações" estiver selecionado, usamos todos os IDs das categorias filtradas
-    clientIdsParam = clientIdsCategorizados.length > 0 ? clientIdsCategorizados : undefined;
-  } else {
-    // Intersecção entre os clientes selecionados manualmente e os permitidos pela categoria
-    const filtrados = clientIdsNumericos.filter(id => clientIdsCategorizados.includes(id));
-    clientIdsParam = filtrados.length > 0 ? filtrados : [-1]; // [-1] impede trazer todos se nenhum bater
-  }
-
-  this.spinnerVisible = true;
-  this.cdr.markForCheck();
-
-// COMPARAÇÃO MENSAL
-if (this.viewMode === 'MONTHCOMPARATION') {
+    if (this.viewMode === 'MONTHCOMPARATION') {
       if (this.selectedYear === null || this.selectedMonth === null || this.selectedYear2 === null || this.selectedMonth2 === null) {
+        fim();
         return;
       }
 
-      const start1 = this.formatDateTimeToIso(new Date(Number(this.selectedYear), Number(this.selectedMonth), 1, 0, 0, 0));
-      const end1 = this.formatDateTimeToIso(new Date(Number(this.selectedYear), Number(this.selectedMonth) + 1, 0, 23, 59, 59));
-      
-      const start2 = this.formatDateTimeToIso(new Date(Number(this.selectedYear2), Number(this.selectedMonth2), 1, 0, 0, 0));
-      const end2 = this.formatDateTimeToIso(new Date(Number(this.selectedYear2), Number(this.selectedMonth2) + 1, 0, 23, 59, 59));
+      const [start1, end1] = this.intervaloMes(Number(this.selectedYear), Number(this.selectedMonth));
+      const [start2, end2] = this.intervaloMes(Number(this.selectedYear2), Number(this.selectedMonth2));
 
       forkJoin({
-        p1: this.consumptionService.filterConsumptions(0, 10000, 'consumptionDate', 'asc', {
-          clientIds: clientIdsParam, startDate: start1, endDate: end1
-        }),
-        p2: this.consumptionService.filterConsumptions(0, 10000, 'consumptionDate', 'asc', {
-          clientIds: clientIdsParam, startDate: start2, endDate: end2
-        })
+        p1: this.consumptionService.filterConsumptions(0, 10000, 'consumptionDate', 'asc', { clientIds: clientIdsParam, startDate: start1, endDate: end1 }),
+        p2: this.consumptionService.filterConsumptions(0, 10000, 'consumptionDate', 'asc', { clientIds: clientIdsParam, startDate: start2, endDate: end2 })
       })
-      .pipe(finalize(() => {
-        this.spinnerVisible = false;
-        this.cdr.markForCheck();
-      }))
+      .pipe(finalize(fim))
       .subscribe({
-        next: (res: any) => {
-          // Passa o objeto completo 'res.p1' e 'res.p2' para tratamento seguro
-          this.processarComparacaoMensal(res.p1, res.p2);
-        },
+        next: (res: any) => this.processarComparacaoMensal(res.p1, res.p2),
         error: (err) => {
           console.error('Erro ao comparar meses:', err);
           this.resetMetrics();
@@ -513,34 +401,22 @@ if (this.viewMode === 'MONTHCOMPARATION') {
       return;
     }
 
-    // COMPARAÇÃO ANUAL
- if (this.viewMode === 'YEARCOMPARATION') {
+    if (this.viewMode === 'YEARCOMPARATION') {
       if (this.selectedYear === null || this.selectedYear2 === null) {
+        fim();
         return;
       }
 
-      const start1 = this.formatDateTimeToIso(new Date(Number(this.selectedYear), 0, 1, 0, 0, 0));
-      const end1 = this.formatDateTimeToIso(new Date(Number(this.selectedYear), 11, 31, 23, 59, 59));
-      
-      const start2 = this.formatDateTimeToIso(new Date(Number(this.selectedYear2), 0, 1, 0, 0, 0));
-      const end2 = this.formatDateTimeToIso(new Date(Number(this.selectedYear2), 11, 31, 23, 59, 59));
+      const [start1, end1] = this.intervaloAno(Number(this.selectedYear));
+      const [start2, end2] = this.intervaloAno(Number(this.selectedYear2));
 
       forkJoin({
-        p1: this.consumptionService.filterConsumptions(0, 10000, 'consumptionDate', 'asc', {
-          clientIds: clientIdsParam, startDate: start1, endDate: end1
-        }),
-        p2: this.consumptionService.filterConsumptions(0, 10000, 'consumptionDate', 'asc', {
-          clientIds: clientIdsParam, startDate: start2, endDate: end2
-        })
+        p1: this.consumptionService.filterConsumptions(0, 10000, 'consumptionDate', 'asc', { clientIds: clientIdsParam, startDate: start1, endDate: end1 }),
+        p2: this.consumptionService.filterConsumptions(0, 10000, 'consumptionDate', 'asc', { clientIds: clientIdsParam, startDate: start2, endDate: end2 })
       })
-      .pipe(finalize(() => {
-        this.spinnerVisible = false;
-        this.cdr.markForCheck();
-      }))
+      .pipe(finalize(fim))
       .subscribe({
-        next: (res: any) => {
-          this.processarComparacaoAnual(res.p1, res.p2);
-        },
+        next: (res: any) => this.processarComparacaoAnual(res.p1, res.p2),
         error: (err) => {
           console.error('Erro ao comparar anos:', err);
           this.resetMetrics();
@@ -549,56 +425,38 @@ if (this.viewMode === 'MONTHCOMPARATION') {
       return;
     }
 
-if (this.viewMode === 'ENTRADA_VS_SAIDA') {
-  let startIso: string | undefined;
-  let endIso: string | undefined;
+    if (this.viewMode === 'ENTRADA_VS_SAIDA') {
+      let startIso: string | undefined;
+      let endIso: string | undefined;
 
-  // Definir o intervalo de datas com base na visão atual (ou usar o mês/ano ativo)
-  if (this.selectedYear !== null && this.selectedMonth !== null) {
-    const start = new Date(this.selectedYear, this.selectedMonth, 1, 0, 0, 0);
-    const ultimoDia = new Date(this.selectedYear, this.selectedMonth + 1, 0).getDate();
-    const end = new Date(this.selectedYear, this.selectedMonth, ultimoDia, 23, 59, 59);
-    startIso = this.formatDateTimeToIso(start);
-    endIso = this.formatDateTimeToIso(end);
-  } else if (this.selectedYear !== null) {
-    startIso = this.formatDateTimeToIso(new Date(this.selectedYear, 0, 1, 0, 0, 0));
-    endIso = this.formatDateTimeToIso(new Date(this.selectedYear, 11, 31, 23, 59, 59));
-  }
+      if (this.selectedYear !== null && this.selectedMonth !== null) {
+        [startIso, endIso] = this.intervaloMes(this.selectedYear, this.selectedMonth);
+      } else if (this.selectedYear !== null) {
+        [startIso, endIso] = this.intervaloAno(this.selectedYear);
+      }
 
-  this.consumptionService.filterConsumptions(0, 10000, 'consumptionDate', 'asc', {
-    startDate: startIso,
-    endDate: endIso
-  })
-  .pipe(finalize(() => {
-    this.spinnerVisible = false;
-    this.cdr.markForCheck();
-  }))
-  .subscribe({
-    next: (res: any) => {
-      const consumptions = res?._embedded?.consumptionDTOList || res?._embedded?.consumptions || res?.content || [];
-      this.processarComparacaoEntradaSaida(consumptions);
-    },
-    error: (err) => {
-      console.error('Erro ao carregar dados comparativos:', err);
-      this.resetMetrics();
+      this.consumptionService.filterConsumptions(0, 10000, 'consumptionDate', 'asc', {
+        startDate: startIso,
+        endDate: endIso
+      })
+      .pipe(finalize(fim))
+      .subscribe({
+        next: (res: any) => this.processarComparacaoEntradaSaida(this.extrairLista(res)),
+        error: (err) => {
+          console.error('Erro ao carregar dados comparativos:', err);
+          this.resetMetrics();
+        }
+      });
+      return;
     }
-  });
-  return;
-}
 
-    // MODOS INDIVIDUAIS (MONTHLY, YEARLY, RANGE)
     let startIso: string | undefined;
     let endIso: string | undefined;
 
     if (this.viewMode === 'MONTHLY' && this.selectedMonth !== null && this.selectedYear !== null) {
-      const start = new Date(this.selectedYear, this.selectedMonth, 1, 0, 0, 0);
-      const ultimoDia = new Date(this.selectedYear, this.selectedMonth + 1, 0).getDate();
-      const end = new Date(this.selectedYear, this.selectedMonth, ultimoDia, 23, 59, 59);
-      startIso = this.formatDateTimeToIso(start);
-      endIso = this.formatDateTimeToIso(end);
+      [startIso, endIso] = this.intervaloMes(this.selectedYear, this.selectedMonth);
     } else if (this.viewMode === 'YEARLY' && this.selectedYear !== null) {
-      startIso = this.formatDateTimeToIso(new Date(this.selectedYear, 0, 1, 0, 0, 0));
-      endIso = this.formatDateTimeToIso(new Date(this.selectedYear, 11, 31, 23, 59, 59));
+      [startIso, endIso] = this.intervaloAno(this.selectedYear);
     } else if (this.viewMode === 'RANGE' && this.startDate && this.endDate) {
       const start = new Date(this.startDate);
       start.setHours(0, 0, 0);
@@ -613,226 +471,185 @@ if (this.viewMode === 'ENTRADA_VS_SAIDA') {
       startDate: startIso,
       endDate: endIso
     })
-    .pipe(finalize(() => {
-      this.spinnerVisible = false;
-      this.cdr.markForCheck();
-    }))
+    .pipe(finalize(fim))
     .subscribe({
-      next: (res: any) => {
-        const consumptions = res?._embedded?.consumptionDTOList || res?._embedded?.consumptions || res?.content || [];
-        this.processarDadosConsumo(consumptions);
-      },
+      next: (res: any) => this.processarDadosConsumo(this.extrairLista(res)),
       error: (err) => {
         console.error('Erro ao carregar consumos:', err);
         this.resetMetrics();
       }
     });
   }
-private processarDadosConsumo(consumptions: any[]): void {
-  if (!Array.isArray(consumptions) || consumptions.length === 0) {
-    this.resetMetrics();
-    return;
-  }
 
-  // 1. Primeiro ordenamos e definimos as variáveis necessárias
-  const consumptionsOrdenados = [...consumptions].sort((a, b) => {
-    return new Date(a.consumptionDate).getTime() - new Date(b.consumptionDate).getTime();
-  });
-  const len = consumptionsOrdenados.length;
+  // ===================== PROCESSAMENTO =====================
 
-  const clientIdsPermitidos = new Set(this.getClientIdsPorCategoria());
-
-  // Mapa: nomeCliente -> (dateKey -> volume)
-  const perClientChartMap = new Map<string, Map<string, number>>();
-  const previousReadingMap = new Map<number, number>();
-  const clientTotalVolumeMap = new Map<string, number>();
-
-  // 2. Agora o ciclo for corre sem erros
-  for (let i = 0; i < len; i++) {
-    const c = consumptionsOrdenados[i];
-    if (!c) continue;
-
-    if (i === 0 && (c.energyContent || c.energy_content) && !this.energyContentMjSm3) {
-      this.energyContentMjSm3 = Number(c.energyContent || c.energy_content);
+  private processarDadosConsumo(consumptions: any[]): void {
+    if (!Array.isArray(consumptions) || consumptions.length === 0) {
+      this.resetMetrics();
+      return;
     }
 
-    const clientIdNum = Number(c.clientId ?? c.client?.id ?? c.client_id ?? 0);
+    const ordenados = this.ordenarPorData(consumptions);
+    const len = ordenados.length;
+    const clientIdsPermitidos = new Set(this.getClientIdsPorCategoria());
 
-    // Se o cliente não pertencer à categoria selecionada, ignora o registo
-    if (clientIdsPermitidos.size > 0 && !clientIdsPermitidos.has(clientIdNum)) {
-      continue;
-    }
+    const perClientChartMap = new Map<string, Map<string, number>>();
+    const previousReadingMap = new Map<number, number>();
+    const clientTotalVolumeMap = new Map<string, number>();
 
-    const rawReading = Number(c.volume ?? c.reading ?? c.correctedVolume ?? 0);
-    const cliente = this.listaClientes.find(cli => Number(cli.id) === clientIdNum);
-    const clientName = c.client?.firstName || cliente?.firstName || `Cliente #${clientIdNum}`;
+    for (let i = 0; i < len; i++) {
+      const c = ordenados[i];
+      if (!c) continue;
 
-    let deltaVolume = 0;
+      if (i === 0 && (c.energyContent || c.energy_content) && !this.energyContentMjSm3) {
+        this.energyContentMjSm3 = Number(c.energyContent || c.energy_content);
+      }
 
-    if (c.deltaVolume !== undefined && c.deltaVolume !== null && Number(c.deltaVolume) >= 0) {
-      deltaVolume = Number(c.deltaVolume);
-    } else {
-      if (!previousReadingMap.has(clientIdNum)) {
-        previousReadingMap.set(clientIdNum, rawReading);
+      const clientIdNum = Number(c.clientId ?? c.client?.id ?? c.client_id ?? 0);
+
+      if (clientIdsPermitidos.size > 0 && !clientIdsPermitidos.has(clientIdNum)) {
+        continue;
+      }
+
+      const cliente = this.clientesPorId.get(clientIdNum);
+      const clientName = c.client?.firstName || cliente?.firstName || `Cliente #${clientIdNum}`;
+
+      const deltaVolume = this.calcularDeltaRegisto(c, clientIdNum, previousReadingMap);
+      if (deltaVolume === null) {
         if (!clientTotalVolumeMap.has(clientName)) clientTotalVolumeMap.set(clientName, 0);
         continue;
       }
 
-      const prevReading = previousReadingMap.get(clientIdNum)!;
-      deltaVolume = this.calcularDeltaLeitura(
-        rawReading,
-        prevReading,
-        c.meterMaxCapacity ? Number(c.meterMaxCapacity) : this.DEFAULT_ROLLOVER_LIMIT
-      );
+      clientTotalVolumeMap.set(clientName, (clientTotalVolumeMap.get(clientName) || 0) + deltaVolume);
+
+      const dateKey = this.gerarChaveData(c);
+      let clientMap = perClientChartMap.get(clientName);
+      if (!clientMap) {
+        clientMap = new Map<string, number>();
+        perClientChartMap.set(clientName, clientMap);
+      }
+      clientMap.set(dateKey, (clientMap.get(dateKey) || 0) + deltaVolume);
     }
 
-    previousReadingMap.set(clientIdNum, rawReading);
-    clientTotalVolumeMap.set(clientName, (clientTotalVolumeMap.get(clientName) || 0) + deltaVolume);
+    let totalVbM3 = 0;
+    const topConsumers: { name: string; value: number; percent?: number }[] = [];
 
-    let dateKey = 'S/D';
-    if (c.consumptionDate) {
-      const dateVal = new Date(c.consumptionDate);
-      if (!isNaN(dateVal.getTime())) {
-        dateKey = (this.viewMode === 'YEARLY')
-          ? this.meses[dateVal.getMonth()]
-          : `${String(dateVal.getDate()).padStart(2, '0')}/${String(dateVal.getMonth() + 1).padStart(2, '0')}`;
+    clientTotalVolumeMap.forEach((vbCliente, clientName) => {
+      totalVbM3 += vbCliente;
+      topConsumers.push({ name: clientName, value: vbCliente });
+    });
+
+    this.volumePorCliente = Array.from(clientTotalVolumeMap.entries())
+      .map(([name, value]) => ({ name, value: Number(value.toFixed(2)) }))
+      .sort((a, b) => b.value - a.value);
+
+    this.totalVolumeConsumido = Number(totalVbM3.toFixed(2));
+    this.totalRegistos = len;
+
+    const maiorMapSize = perClientChartMap.size > 0
+      ? Math.max(...Array.from(perClientChartMap.values()).map(m => m.size))
+      : 0;
+
+    const totalDiasMes = (this.selectedYear && this.selectedMonth !== null)
+      ? new Date(this.selectedYear, this.selectedMonth + 1, 0).getDate()
+      : (maiorMapSize || 1);
+
+    this.mediaConsumoDiarioM3 = this.totalVolumeConsumido / (totalDiasMes || 1);
+
+    this.areaChartDataM3 = this.construirSeriesM3(perClientChartMap);
+
+    for (const t of topConsumers) {
+      t.percent = this.totalVolumeConsumido > 0 ? (t.value / this.totalVolumeConsumido) * 100 : 0;
+    }
+    topConsumers.sort((a, b) => b.value - a.value);
+    this.topConsumersData = topConsumers.slice(0, 5);
+
+    const datasetsParaPico = this.areaChartDataM3.map(ds => ({
+      nome: this.areaChartDataM3.length > 1 ? ds.name : '',
+      pontos: ds.series
+    }));
+    const { pico, minimo } = this.encontrarPicoEMinimo(datasetsParaPico);
+    this.picoConsumo = pico;
+    this.minimoConsumo = minimo;
+
+    const periodosEsperados = this.calcularPeriodosEsperados();
+    this.dataQualityScore = periodosEsperados > 0
+      ? Math.min(100, Number(((maiorMapSize / periodosEsperados) * 100).toFixed(0)))
+      : 0;
+
+    this.recalcularEnergiaComNovoEnergyContent();
+  }
+
+  private processarComparacaoEntradaSaida(consumptions: any[]): void {
+    if (!Array.isArray(consumptions) || consumptions.length === 0) {
+      this.resetMetrics();
+      return;
+    }
+
+    const ordenados = this.ordenarPorData(consumptions);
+
+    const mapEntradas = new Map<string, number>();
+    const mapSaidas = new Map<string, number>();
+    const previousReadingMap = new Map<number, number>();
+
+    let totalEntradaVol = 0;
+    let totalSaidaVol = 0;
+    let totalRegs = 0;
+
+    for (let i = 0; i < ordenados.length; i++) {
+      const c = ordenados[i];
+      if (!c) continue;
+
+      if (i === 0 && (c.energyContent || c.energy_content) && !this.energyContentMjSm3) {
+        this.energyContentMjSm3 = Number(c.energyContent || c.energy_content);
+      }
+
+      const clientIdNum = Number(c.clientId ?? c.client?.id ?? c.client_id ?? 0);
+      const eEntrada = this.isClienteEntrada(this.clientesPorId.get(clientIdNum));
+
+      const deltaVolume = this.calcularDeltaRegisto(c, clientIdNum, previousReadingMap);
+      if (deltaVolume === null) continue;
+
+      totalRegs++;
+      const dateKey = this.gerarChaveData(c);
+
+      if (eEntrada) {
+        mapEntradas.set(dateKey, (mapEntradas.get(dateKey) || 0) + deltaVolume);
+        totalEntradaVol += deltaVolume;
+      } else {
+        mapSaidas.set(dateKey, (mapSaidas.get(dateKey) || 0) + deltaVolume);
+        totalSaidaVol += deltaVolume;
       }
     }
 
-    // Acumular por cliente
-    if (!perClientChartMap.has(clientName)) {
-      perClientChartMap.set(clientName, new Map<string, number>());
-    }
-    const clientMap = perClientChartMap.get(clientName)!;
-    clientMap.set(dateKey, (clientMap.get(dateKey) || 0) + deltaVolume);
+    const todasDatas = new Set([...mapEntradas.keys(), ...mapSaidas.keys()]);
+    const datasOrdenadas = Array.from(todasDatas).sort((a, b) => this.compararLabelsPeriodo(a, b));
+
+    const seriesEntradas = datasOrdenadas.map(d => ({ name: d, value: Number((mapEntradas.get(d) || 0).toFixed(2)) }));
+    const seriesSaidas = datasOrdenadas.map(d => ({ name: d, value: Number((mapSaidas.get(d) || 0).toFixed(2)) }));
+
+    this.areaChartDataM3 = [
+      { name: '📥 Entradas (PRS1/HPCMS3)', series: seriesEntradas },
+      { name: '📤 Saídas (Demais Estações)', series: seriesSaidas }
+    ];
+
+    this.totalVolumeConsumido = Number((totalEntradaVol + totalSaidaVol).toFixed(2));
+    this.totalRegistos = totalRegs;
+
+    const totalDias = this.calcularPeriodosEsperados() || 1;
+    this.mediaConsumoDiarioM3 = this.totalVolumeConsumido / totalDias;
+
+    this.volumePorCliente = [
+      { name: '📥 Total Entradas', value: Number(totalEntradaVol.toFixed(2)) },
+      { name: '📤 Total Saídas', value: Number(totalSaidaVol.toFixed(2)) }
+    ];
+
+    this.recalcularEnergiaComNovoEnergyContent();
   }
 
-  // Totais
-  let totalVbM3 = 0;
-  const topConsumers: { name: string; value: number; percent?: number }[] = [];
-
-  clientTotalVolumeMap.forEach((vbCliente, clientName) => {
-    totalVbM3 += vbCliente;
-    topConsumers.push({ name: clientName, value: vbCliente });
-  });
-
-  this.volumePorCliente = Array.from(clientTotalVolumeMap.entries())
-    .map(([name, value]) => ({ name, value: Number(value.toFixed(2)) }))
-    .sort((a, b) => b.value - a.value);
-
-  this.totalVolumeConsumido = Number(totalVbM3.toFixed(2));
-  this.totalRegistos = len;
-
-  const totalDiasMes = (this.selectedYear && this.selectedMonth !== null)
-    ? new Date(this.selectedYear, this.selectedMonth + 1, 0).getDate()
-    : (perClientChartMap.size > 0 ? Math.max(...Array.from(perClientChartMap.values()).map(m => m.size)) : 1);
-
-  this.mediaConsumoDiarioM3 = this.totalVolumeConsumido / (totalDiasMes || 1);
-
-  // Construir séries
-  this.areaChartDataM3 = this.construirSeriesM3(perClientChartMap);
-
-  // TOP consumers (percentagens)
-  for (let i = 0; i < topConsumers.length; i++) {
-    topConsumers[i].percent = this.totalVolumeConsumido > 0
-      ? (topConsumers[i].value / this.totalVolumeConsumido) * 100
-      : 0;
-  }
-  topConsumers.sort((a, b) => b.value - a.value);
-  this.topConsumersData = topConsumers.slice(0, 5);
-
-  // Pico / mínimo
-  const datasetsParaPico = this.areaChartDataM3.map(ds => ({
-    nome: this.areaChartDataM3.length > 1 ? ds.name : '',
-    pontos: ds.series
-  }));
-  const { pico, minimo } = this.encontrarPicoEMinimo(datasetsParaPico);
-  this.picoConsumo = pico;
-  this.minimoConsumo = minimo;
-
-  const periodosEsperados = this.calcularPeriodosEsperados();
-  const maiorMapSize = perClientChartMap.size > 0
-    ? Math.max(...Array.from(perClientChartMap.values()).map(m => m.size))
-    : 0;
-  this.dataQualityScore = periodosEsperados > 0
-    ? Math.min(100, Number(((maiorMapSize / periodosEsperados) * 100).toFixed(0)))
-    : 0;
-
-  this.recalcularEnergiaComNovoEnergyContent();
-}
-
-/**
- * Constrói as séries do gráfico de evolução.
- * - Se for apenas 1 cliente (ou ALL agregado num único cliente), devolve 1 série.
- * - Se forem múltiplos clientes, devolve 1 série por cliente,
- *   com todas as datas alinhadas (union) para que o gráfico fique consistente.
- */
-private construirSeriesM3(perClientChartMap: Map<string, Map<string, number>>): any[] {
-  const nomesClientes = Array.from(perClientChartMap.keys());
-
-  // Caso 1: apenas 1 cliente -> série única (mantém label original)
-  if (nomesClientes.length <= 1) {
-    const unico = nomesClientes[0];
-    const mapa = unico ? perClientChartMap.get(unico)! : new Map<string, number>();
-    const series = Array.from(mapa.entries())
-      .map(([name, value]) => ({ name, value: Number(value.toFixed(2)) }))
-      // Ordenar por data (para MONTHLY/RANGE) ou por mês (YEARLY)
-      .sort((a, b) => this.compararLabelsPeriodo(a.name, b.name));
-    return [{ name: 'Consumo Real (m³)', series }];
-  }
-
-  // Caso 2: múltiplos clientes -> 1 série por cliente
-  // Calcular a union de todas as datas, ordenada
-  const todasDatas = new Set<string>();
-  perClientChartMap.forEach(mapa => mapa.forEach((_, data) => todasDatas.add(data)));
-  const datasOrdenadas = Array.from(todasDatas)
-    .sort((a, b) => this.compararLabelsPeriodo(a, b));
-
-  return nomesClientes.map(nomeCliente => {
-    const mapa = perClientChartMap.get(nomeCliente)!;
-    const series = datasOrdenadas.map(data => ({
-      name: data,
-      value: Number((mapa.get(data) || 0).toFixed(2))
-    }));
-    return { name: nomeCliente, series };
-  });
-}
-
-/**
- * Compara duas labels de período para ordenação.
- * Suporta formatos: "dd/MM", "Janeiro"..."Dezembro", "Dia NN", "S/D".
- */
-private compararLabelsPeriodo(a: string, b: string): number {
-  // Meses
-  const idxA = this.meses.indexOf(a);
-  const idxB = this.meses.indexOf(b);
-  if (idxA !== -1 && idxB !== -1) return idxA - idxB;
-
-  // Dia NN
-  const diaMatchA = a.match(/Dia (\d+)/);
-  const diaMatchB = b.match(/Dia (\d+)/);
-  if (diaMatchA && diaMatchB) {
-    return Number(diaMatchA[1]) - Number(diaMatchB[1]);
-  }
-
-  // dd/MM
-  const ddmmA = a.match(/^(\d{2})\/(\d{2})$/);
-  const ddmmB = b.match(/^(\d{2})\/(\d{2})$/);
-  if (ddmmA && ddmmB) {
-    const da = Number(ddmmA[1]), ma = Number(ddmmA[2]);
-    const db = Number(ddmmB[1]), mb = Number(ddmmB[2]);
-    if (ma !== mb) return ma - mb;
-    return da - db;
-  }
-
-  // Fallback alfabético
-  return a.localeCompare(b);
-}
-
-private processarComparacaoMensal(res1: any, res2: any): void {
-    // Extração segura suportando HATEOAS (_embedded.consumptionDTOList), .content ou arrays diretos
-    const consumptions1 = res1?._embedded?.consumptionDTOList || res1?._embedded?.consumptions || res1?.content || (Array.isArray(res1) ? res1 : []);
-    const consumptions2 = res2?._embedded?.consumptionDTOList || res2?._embedded?.consumptions || res2?.content || (Array.isArray(res2) ? res2 : []);
+  private processarComparacaoMensal(res1: any, res2: any): void {
+    const consumptions1 = this.extrairLista(res1);
+    const consumptions2 = this.extrairLista(res2);
 
     const labelPeriodo1 = `${this.meses[this.selectedMonth!]} / ${this.selectedYear}`;
     const labelPeriodo2 = `${this.meses[this.selectedMonth2!]} / ${this.selectedYear2}`;
@@ -840,38 +657,12 @@ private processarComparacaoMensal(res1: any, res2: any): void {
     const series1 = this.extrairSeriesPorDiaDoMes(consumptions1);
     const series2 = this.extrairSeriesPorDiaDoMes(consumptions2);
 
-    const vol1 = series1.reduce((acc, curr) => acc + curr.value, 0);
-    const vol2 = series2.reduce((acc, curr) => acc + curr.value, 0);
-
-    this.totalVolumeConsumido = Number((vol1 + vol2).toFixed(2));
-    this.totalRegistos = consumptions1.length + consumptions2.length;
-
-    // Atribuição para o gráfico de linhas (múltiplas séries comparativas)
-    this.areaChartDataM3 = [
-      { name: labelPeriodo1, series: series1 },
-      { name: labelPeriodo2, series: series2 }
-    ];
-
-    const dadosSuficientes = consumptions1.length > 0;
-    this.totalVolumeAnterior = dadosSuficientes ? Number(vol1.toFixed(2)) : null;
-    this.variacaoPercentual = (dadosSuficientes && vol1 > 0)
-      ? Number((((vol2 - vol1) / vol1) * 100).toFixed(1))
-      : null;
-
-    const { pico, minimo } = this.encontrarPicoEMinimo([
-      { nome: labelPeriodo1, pontos: series1 },
-      { nome: labelPeriodo2, pontos: series2 }
-    ]);
-    this.picoConsumo = pico;
-    this.minimoConsumo = minimo;
-
-    this.recalcularEnergiaComNovoEnergyContent();
+    this.aplicarComparacao(consumptions1, consumptions2, series1, series2, labelPeriodo1, labelPeriodo2);
   }
 
-private processarComparacaoAnual(res1: any, res2: any): void {
-    // Extração segura suportando HATEOAS (_embedded.consumptionDTOList), .content ou arrays diretos
-    const consumptions1 = res1?._embedded?.consumptionDTOList || res1?._embedded?.consumptions || res1?.content || (Array.isArray(res1) ? res1 : []);
-    const consumptions2 = res2?._embedded?.consumptionDTOList || res2?._embedded?.consumptions || res2?.content || (Array.isArray(res2) ? res2 : []);
+  private processarComparacaoAnual(res1: any, res2: any): void {
+    const consumptions1 = this.extrairLista(res1);
+    const consumptions2 = this.extrairLista(res2);
 
     const labelAno1 = `Ano ${this.selectedYear}`;
     const labelAno2 = `Ano ${this.selectedYear2}`;
@@ -879,16 +670,24 @@ private processarComparacaoAnual(res1: any, res2: any): void {
     const series1 = this.extrairSeriesPorMesDoAno(consumptions1);
     const series2 = this.extrairSeriesPorMesDoAno(consumptions2);
 
+    this.aplicarComparacao(consumptions1, consumptions2, series1, series2, labelAno1, labelAno2);
+  }
+
+  /** Lógica comum às comparações mensal/anual. */
+  private aplicarComparacao(
+    consumptions1: any[], consumptions2: any[],
+    series1: PontoSerie[], series2: PontoSerie[],
+    label1: string, label2: string
+  ): void {
     const vol1 = series1.reduce((acc, curr) => acc + curr.value, 0);
     const vol2 = series2.reduce((acc, curr) => acc + curr.value, 0);
 
     this.totalVolumeConsumido = Number((vol1 + vol2).toFixed(2));
     this.totalRegistos = consumptions1.length + consumptions2.length;
 
-    // Atribuição para o gráfico de linhas (múltiplas séries anuais comparativas)
     this.areaChartDataM3 = [
-      { name: labelAno1, series: series1 },
-      { name: labelAno2, series: series2 }
+      { name: label1, series: series1 },
+      { name: label2, series: series2 }
     ];
 
     const dadosSuficientes = consumptions1.length > 0;
@@ -898,8 +697,8 @@ private processarComparacaoAnual(res1: any, res2: any): void {
       : null;
 
     const { pico, minimo } = this.encontrarPicoEMinimo([
-      { nome: labelAno1, pontos: series1 },
-      { nome: labelAno2, pontos: series2 }
+      { nome: label1, pontos: series1 },
+      { nome: label2, pontos: series2 }
     ]);
     this.picoConsumo = pico;
     this.minimoConsumo = minimo;
@@ -907,119 +706,168 @@ private processarComparacaoAnual(res1: any, res2: any): void {
     this.recalcularEnergiaComNovoEnergyContent();
   }
 
-private extrairSeriesPorDiaDoMes(consumptions: any[]): { name: string; value: number }[] {
-    if (!Array.isArray(consumptions) || consumptions.length === 0) return [];
+  private construirSeriesM3(perClientChartMap: Map<string, Map<string, number>>): any[] {
+    const nomesClientes = Array.from(perClientChartMap.keys());
 
-    const consumptionsOrdenados = [...consumptions].sort((a, b) => {
-      return new Date(a.consumptionDate).getTime() - new Date(b.consumptionDate).getTime();
-    });
-
-    const chartMap = new Map<string, number>();
-    const previousReadingMap = new Map<number, number>();
-
-    const len = consumptionsOrdenados.length;
-    for (let i = 0; i < len; i++) {
-      const c = consumptionsOrdenados[i];
-      if (!c) continue;
-
-      const clientIdNum = Number(c.clientId ?? c.client?.id ?? 0);
-      const rawReading = Number(c.volume ?? c.reading ?? c.correctedVolume ?? 0);
-
-      let deltaVolume = 0;
-
-      if (c.deltaVolume !== undefined && c.deltaVolume !== null && Number(c.deltaVolume) >= 0) {
-        deltaVolume = Number(c.deltaVolume);
-      } else {
-        if (!previousReadingMap.has(clientIdNum)) {
-          previousReadingMap.set(clientIdNum, rawReading);
-          continue;
-        }
-
-        const prevReading = previousReadingMap.get(clientIdNum)!;
-        deltaVolume = this.calcularDeltaLeitura(
-          rawReading,
-          prevReading,
-          c.meterMaxCapacity ? Number(c.meterMaxCapacity) : this.DEFAULT_ROLLOVER_LIMIT
-        );
-      }
-
-      previousReadingMap.set(clientIdNum, rawReading);
-
-      if (c.consumptionDate) {
-        const dateVal = new Date(c.consumptionDate);
-        if (!isNaN(dateVal.getTime())) {
-          // Normaliza a chave para o formato "Dia 01", "Dia 02", etc., permitindo a sobreposição temporal perfeita no gráfico
-          const dayKey = `Dia ${String(dateVal.getDate()).padStart(2, '0')}`;
-          chartMap.set(dayKey, (chartMap.get(dayKey) || 0) + deltaVolume);
-        }
-      }
+    if (nomesClientes.length <= 1) {
+      const unico = nomesClientes[0];
+      const mapa = unico ? perClientChartMap.get(unico)! : new Map<string, number>();
+      const series = Array.from(mapa.entries())
+        .map(([name, value]) => ({ name, value: Number(value.toFixed(2)) }))
+        .sort((a, b) => this.compararLabelsPeriodo(a.name, b.name));
+      return [{ name: 'Consumo Real (m³)', series }];
     }
 
-    // Retorna ordenado pelo número do dia
-    return Array.from(chartMap.entries())
-      .map(([name, value]) => ({ name, value: Number(value.toFixed(2)) }))
-      .sort((a, b) => {
-        const diaA = parseInt(a.name.replace('Dia ', ''), 10);
-        const diaB = parseInt(b.name.replace('Dia ', ''), 10);
-        return diaA - diaB;
-      });
+    const todasDatas = new Set<string>();
+    perClientChartMap.forEach(mapa => mapa.forEach((_, data) => todasDatas.add(data)));
+    const datasOrdenadas = Array.from(todasDatas).sort((a, b) => this.compararLabelsPeriodo(a, b));
+
+    return nomesClientes.map(nomeCliente => {
+      const mapa = perClientChartMap.get(nomeCliente)!;
+      const series = datasOrdenadas.map(data => ({
+        name: data,
+        value: Number((mapa.get(data) || 0).toFixed(2))
+      }));
+      return { name: nomeCliente, series };
+    });
   }
 
-private extrairSeriesPorMesDoAno(consumptions: any[]): { name: string; value: number }[] {
+  private extrairSeriesPorDiaDoMes(consumptions: any[]): PontoSerie[] {
+    return this.extrairSeriesAgregadas(consumptions, 'DIA');
+  }
+
+  private extrairSeriesPorMesDoAno(consumptions: any[]): PontoSerie[] {
+    return this.extrairSeriesAgregadas(consumptions, 'MES');
+  }
+
+  private extrairSeriesAgregadas(consumptions: any[], modo: 'DIA' | 'MES'): PontoSerie[] {
     if (!Array.isArray(consumptions) || consumptions.length === 0) return [];
 
-    const consumptionsOrdenados = [...consumptions].sort((a, b) => {
-      return new Date(a.consumptionDate).getTime() - new Date(b.consumptionDate).getTime();
-    });
-
+    const ordenados = this.ordenarPorData(consumptions);
     const chartMap = new Map<string, number>();
     const previousReadingMap = new Map<number, number>();
 
-    const len = consumptionsOrdenados.length;
-    for (let i = 0; i < len; i++) {
-      const c = consumptionsOrdenados[i];
+    for (const c of ordenados) {
       if (!c) continue;
 
       const clientIdNum = Number(c.clientId ?? c.client?.id ?? 0);
-      const rawReading = Number(c.volume ?? c.reading ?? c.correctedVolume ?? 0);
-
-      let deltaVolume = 0;
-
-      if (c.deltaVolume !== undefined && c.deltaVolume !== null && Number(c.deltaVolume) >= 0) {
-        deltaVolume = Number(c.deltaVolume);
-      } else {
-        if (!previousReadingMap.has(clientIdNum)) {
-          previousReadingMap.set(clientIdNum, rawReading);
-          continue;
-        }
-
-        const prevReading = previousReadingMap.get(clientIdNum)!;
-        deltaVolume = this.calcularDeltaLeitura(
-          rawReading,
-          prevReading,
-          c.meterMaxCapacity ? Number(c.meterMaxCapacity) : this.DEFAULT_ROLLOVER_LIMIT
-        );
-      }
-
-      previousReadingMap.set(clientIdNum, rawReading);
+      const delta = this.calcularDeltaRegisto(c, clientIdNum, previousReadingMap);
+      if (delta === null) continue;
 
       if (c.consumptionDate) {
         const dateVal = new Date(c.consumptionDate);
         if (!isNaN(dateVal.getTime())) {
-          // Utiliza o nome do mês como chave para alinhar Janeiro com Janeiro, Fevereiro com Fevereiro, etc.
-          const monthKey = this.meses[dateVal.getMonth()];
-          chartMap.set(monthKey, (chartMap.get(monthKey) || 0) + deltaVolume);
+          const key = modo === 'DIA'
+            ? `Dia ${String(dateVal.getDate()).padStart(2, '0')}`
+            : this.meses[dateVal.getMonth()];
+          chartMap.set(key, (chartMap.get(key) || 0) + delta);
         }
       }
     }
 
-    // Retorna ordenado cronologicamente pelos meses (Janeiro a Dezembro)
-    return this.meses
-      .filter(mes => chartMap.has(mes))
-      .map(mes => ({
-        name: mes,
-        value: Number(chartMap.get(mes)!.toFixed(2))
-      }));
+    if (modo === 'MES') {
+      return this.meses
+        .filter(mes => chartMap.has(mes))
+        .map(mes => ({ name: mes, value: Number(chartMap.get(mes)!.toFixed(2)) }));
+    }
+
+    return Array.from(chartMap.entries())
+      .map(([name, value]) => ({ name, value: Number(value.toFixed(2)) }))
+      .sort((a, b) => parseInt(a.name.replace('Dia ', ''), 10) - parseInt(b.name.replace('Dia ', ''), 10));
+  }
+
+  // ===================== HELPERS DE DADOS =====================
+
+  /** Extrai a lista de registos das várias formas de resposta do backend. */
+  private extrairLista(res: any): any[] {
+    return res?._embedded?.consumptionDTOList
+      || res?._embedded?.consumptions
+      || res?._embedded?.clientDTOList
+      || res?._embedded?.clients
+      || res?.content
+      || (Array.isArray(res) ? res : []);
+  }
+
+  private ordenarPorData(consumptions: any[]): any[] {
+    return [...consumptions].sort(
+      (a, b) => new Date(a.consumptionDate).getTime() - new Date(b.consumptionDate).getTime()
+    );
+  }
+
+  /**
+   * Devolve o consumo (delta) de um registo ou null se for a primeira leitura do cliente
+   * (que serve apenas de referência para a leitura seguinte).
+   */
+  private calcularDeltaRegisto(
+    c: any,
+    clientIdNum: number,
+    previousReadingMap: Map<number, number>
+  ): number | null {
+    const rawReading = Number(c.volume ?? c.reading ?? c.correctedVolume ?? 0);
+    let delta: number;
+
+    if (c.deltaVolume !== undefined && c.deltaVolume !== null && Number(c.deltaVolume) >= 0) {
+      delta = Number(c.deltaVolume);
+    } else {
+      if (!previousReadingMap.has(clientIdNum)) {
+        previousReadingMap.set(clientIdNum, rawReading);
+        return null;
+      }
+      delta = this.calcularDeltaLeitura(
+        rawReading,
+        previousReadingMap.get(clientIdNum)!,
+        c.meterMaxCapacity ? Number(c.meterMaxCapacity) : this.DEFAULT_ROLLOVER_LIMIT
+      );
+    }
+
+    previousReadingMap.set(clientIdNum, rawReading);
+    return delta;
+  }
+
+  private gerarChaveData(c: any): string {
+    if (!c.consumptionDate) return 'S/D';
+    const dateVal = new Date(c.consumptionDate);
+    if (isNaN(dateVal.getTime())) return 'S/D';
+
+    return this.viewMode === 'YEARLY'
+      ? this.meses[dateVal.getMonth()]
+      : `${String(dateVal.getDate()).padStart(2, '0')}/${String(dateVal.getMonth() + 1).padStart(2, '0')}`;
+  }
+
+  private compararLabelsPeriodo(a: string, b: string): number {
+    const idxA = this.meses.indexOf(a);
+    const idxB = this.meses.indexOf(b);
+    if (idxA !== -1 && idxB !== -1) return idxA - idxB;
+
+    const diaMatchA = a.match(/Dia (\d+)/);
+    const diaMatchB = b.match(/Dia (\d+)/);
+    if (diaMatchA && diaMatchB) {
+      return Number(diaMatchA[1]) - Number(diaMatchB[1]);
+    }
+
+    const ddmmA = a.match(/^(\d{2})\/(\d{2})$/);
+    const ddmmB = b.match(/^(\d{2})\/(\d{2})$/);
+    if (ddmmA && ddmmB) {
+      const da = Number(ddmmA[1]), ma = Number(ddmmA[2]);
+      const db = Number(ddmmB[1]), mb = Number(ddmmB[2]);
+      if (ma !== mb) return ma - mb;
+      return da - db;
+    }
+
+    return a.localeCompare(b);
+  }
+
+  private intervaloMes(ano: number, mes: number): [string, string] {
+    const start = new Date(ano, mes, 1, 0, 0, 0);
+    const end = new Date(ano, mes + 1, 0, 23, 59, 59);
+    return [this.formatDateTimeToIso(start), this.formatDateTimeToIso(end)];
+  }
+
+  private intervaloAno(ano: number): [string, string] {
+    return [
+      this.formatDateTimeToIso(new Date(ano, 0, 1, 0, 0, 0)),
+      this.formatDateTimeToIso(new Date(ano, 11, 31, 23, 59, 59))
+    ];
   }
 
   private formatDateTimeToIso(d: Date): string {
@@ -1034,56 +882,58 @@ private extrairSeriesPorMesDoAno(consumptions: any[]): { name: string; value: nu
     return deltaRestanteAteLimite < 0 ? 0 : deltaRestanteAteLimite + leituraAtual;
   }
 
-private recalcularEnergiaComNovoEnergyContent(): void {
-  const temSeries = this.areaChartDataM3.some(dataset => dataset?.series?.length > 0);
+  // ===================== ENERGIA E KPIs =====================
 
-  if (temSeries) {
-    let totalEnergiaAcumuladaGJ = 0;
+  private recalcularEnergiaComNovoEnergyContent(): void {
+    const temSeries = this.areaChartDataM3.some(dataset => dataset?.series?.length > 0);
 
-    const novasSeriesGJ = this.areaChartDataM3.map((dataset: any) => {
-      const seriesConvertida = (dataset.series || []).map((item: any) => {
-        let contentParaCalculo = Number(this.energyContentMjSm3);
+    if (temSeries) {
+      let totalEnergiaAcumuladaGJ = 0;
 
-        if (this.viewMode === 'YEARLY') {
-          const indexMes = this.meses.indexOf(item.name);
-          if (indexMes !== -1 && Number(this.monthlyEnergyContent[indexMes]) > 0) {
-            contentParaCalculo = Number(this.monthlyEnergyContent[indexMes]);
+      const novasSeriesGJ = this.areaChartDataM3.map((dataset: any) => {
+        const seriesConvertida = (dataset.series || []).map((item: any) => {
+          let contentParaCalculo = Number(this.energyContentMjSm3);
+
+          if (this.viewMode === 'YEARLY') {
+            const indexMes = this.meses.indexOf(item.name);
+            if (indexMes !== -1 && Number(this.monthlyEnergyContent[indexMes]) > 0) {
+              contentParaCalculo = Number(this.monthlyEnergyContent[indexMes]);
+            }
           }
-        }
 
-        const energyStdItem = contentParaCalculo > 0
-          ? (this.CONSTANTE_ENERGIA_STD / contentParaCalculo) * 1000
-          : 0;
-        const energiaGJ = energyStdItem > 0
-          ? Number((item.value / energyStdItem).toFixed(2))
-          : 0;
+          const energyStdItem = contentParaCalculo > 0
+            ? (this.CONSTANTE_ENERGIA_STD / contentParaCalculo) * 1000
+            : 0;
+          const energiaGJ = energyStdItem > 0
+            ? Number((item.value / energyStdItem).toFixed(2))
+            : 0;
 
-        totalEnergiaAcumuladaGJ += energiaGJ;
-        return { name: item.name, value: energiaGJ };
+          totalEnergiaAcumuladaGJ += energiaGJ;
+          return { name: item.name, value: energiaGJ };
+        });
+
+        return { name: dataset.name, series: seriesConvertida };
       });
 
-      // Preservar o nome do dataset (nome do cliente ou 'Consumo Real (m³)')
-      return { name: dataset.name, series: seriesConvertida };
-    });
+      const globalContent = Number(this.energyContentMjSm3);
+      this.energyStd = globalContent > 0
+        ? Number(((this.CONSTANTE_ENERGIA_STD / globalContent) * 1000).toFixed(3))
+        : 0;
+      this.totalEnergiaConsumidaGJ = Number(totalEnergiaAcumuladaGJ.toFixed(2));
+      this.areaChartDataGJ = novasSeriesGJ;
 
-    const globalContent = Number(this.energyContentMjSm3);
-    this.energyStd = globalContent > 0
-      ? Number(((this.CONSTANTE_ENERGIA_STD / globalContent) * 1000).toFixed(3))
-      : 0;
-    this.totalEnergiaConsumidaGJ = Number(totalEnergiaAcumuladaGJ.toFixed(2));
-    this.areaChartDataGJ = novasSeriesGJ;
+      const totalDiasCalculo = this.calcularPeriodosEsperados() || 1;
+      this.mediaConsumoDiarioGJ = this.totalEnergiaConsumidaGJ / totalDiasCalculo;
+    } else {
+      this.energyStd = 0;
+      this.totalEnergiaConsumidaGJ = 0;
+      this.mediaConsumoDiarioGJ = 0;
+      this.areaChartDataGJ = [{ name: 'Energia (GJ)', series: [] }];
+    }
 
-    const totalDiasCalculo = this.calcularPeriodosEsperados() || 1;
-    this.mediaConsumoDiarioGJ = this.totalEnergiaConsumidaGJ / totalDiasCalculo;
-  } else {
-    this.energyStd = 0;
-    this.totalEnergiaConsumidaGJ = 0;
-    this.mediaConsumoDiarioGJ = 0;
-    this.areaChartDataGJ = [{ name: 'Energia (GJ)', series: [] }];
+    this.recalcularKpisDerivados();
+    this.atualizarApoioGraficos();
   }
-
-  this.recalcularKpisDerivados();
-}
 
   private recalcularKpisDerivados(): void {
     this.eficienciaEnergetica = this.totalVolumeConsumido > 0
@@ -1097,8 +947,30 @@ private recalcularEnergiaComNovoEnergyContent(): void {
     this.percentualMeta = (this.metaConsumoM3 && this.metaConsumoM3 > 0)
       ? Number(((this.totalVolumeConsumido / this.metaConsumoM3) * 100).toFixed(1))
       : null;
-      
-    this.cdr.markForCheck();
+  }
+
+  /** Atualiza referências e cores UMA vez por carregamento (e não a cada ciclo de deteção de mudanças). */
+  private atualizarApoioGraficos(): void {
+    this.referenciasM3 = this.mediaConsumoDiarioM3 > 0
+      ? [{ name: 'Média', value: Number(this.mediaConsumoDiarioM3.toFixed(2)) }]
+      : [];
+
+    this.referenciasGJ = this.mediaConsumoDiarioGJ > 0
+      ? [{ name: 'Média', value: Number(this.mediaConsumoDiarioGJ.toFixed(2)) }]
+      : [];
+
+    const baseCores: string[] = this.colorSchemeDonut.domain;
+    const qtdSeries = this.areaChartDataM3.length;
+
+    if (qtdSeries <= baseCores.length) {
+      this.colorSchemeLinhas = this.colorSchemeDonut;
+    } else {
+      const extras: string[] = [];
+      for (let i = baseCores.length; i < qtdSeries; i++) {
+        extras.push(`hsl(${(i * 137.508) % 360}, 65%, 55%)`);
+      }
+      this.colorSchemeLinhas = { domain: [...baseCores, ...extras] };
+    }
   }
 
   private resetMetrics(): void {
@@ -1112,7 +984,6 @@ private recalcularEnergiaComNovoEnergyContent(): void {
     this.areaChartDataGJ = [{ name: 'Energia Real (GJ)', series: [] }];
     this.topConsumersData = [];
     this.topConsumersDataGJ = [];
-    this.monthlyEnergyContent = new Array(12).fill(null);
     this.variacaoPercentual = null;
     this.totalVolumeAnterior = null;
     this.picoConsumo = null;
@@ -1122,18 +993,17 @@ private recalcularEnergiaComNovoEnergyContent(): void {
     this.custoEstimado = 0;
     this.percentualMeta = null;
     this.volumePorCliente = [];
-    
-    this.cdr.markForCheck();
+    this.atualizarApoioGraficos();
   }
 
-  private encontrarPicoEMinimo(datasets: { nome: string; pontos: { name: string; value: number }[] }[]): { pico: { value: number; label: string } | null; minimo: { value: number; label: string } | null } {
+  private encontrarPicoEMinimo(
+    datasets: { nome: string; pontos: PontoSerie[] }[]
+  ): { pico: { value: number; label: string } | null; minimo: { value: number; label: string } | null } {
     let pico: { value: number; label: string } | null = null;
     let minimo: { value: number; label: string } | null = null;
 
-    for (let i = 0; i < datasets.length; i++) {
-      const { nome, pontos } = datasets[i];
-      for (let j = 0; j < pontos.length; j++) {
-        const ponto = pontos[j];
+    for (const { nome, pontos } of datasets) {
+      for (const ponto of pontos) {
         const label = nome ? `${nome} - ${ponto.name}` : ponto.name;
         if (!pico || ponto.value > pico.value) pico = { value: ponto.value, label };
         if (!minimo || ponto.value < minimo.value) minimo = { value: ponto.value, label };
@@ -1161,6 +1031,8 @@ private recalcularEnergiaComNovoEnergyContent(): void {
     }
     return 0;
   }
+
+  // ===================== CERTIFICADO =====================
 
   emitirCertificado(): void {
     if (!this.isFiltrosValidosForCertificado) {
@@ -1202,11 +1074,7 @@ private recalcularEnergiaComNovoEnergyContent(): void {
     });
   }
 
-  formatarDataLabel(val: number): string {
-    if (val >= 1000000) return (val / 1000000).toFixed(1) + 'M';
-    if (val >= 1000) return (val / 1000).toFixed(0) + 'k';
-    return val.toLocaleString();
-  }
+  // ===================== GETTERS LEVES =====================
 
   get isFiltrosValidosForCertificado(): boolean {
     if (this.isAllClientsSelected || this.isMultiplosClientesSelecionados || !this.viewMode) return false;
@@ -1216,7 +1084,7 @@ private recalcularEnergiaComNovoEnergyContent(): void {
     return false;
   }
 
-get isAllClientsSelected(): boolean {
+  get isAllClientsSelected(): boolean {
     return !this.selectedClientIds || this.selectedClientIds.length === 0 || this.selectedClientIds.includes('ALL');
   }
 
@@ -1228,27 +1096,11 @@ get isAllClientsSelected(): boolean {
     if (this.isAllClientsSelected) return 'Todos os Clientes';
 
     const nomes = this.selectedClientIds
-      .map(id => this.listaClientes.find(c => Number(c.id) === Number(id))?.firstName)
+      .map(id => this.clientesPorId.get(Number(id))?.firstName)
       .filter((nome): nome is string => !!nome);
 
     if (nomes.length === 0) return '';
     if (nomes.length <= 3) return nomes.join(', ');
     return `${nomes.slice(0, 3).join(', ')} +${nomes.length - 3}`;
   }
-
-  get colorSchemeM3Dynamic(): any {
-  // Se temos várias séries, gerar cores distintas
-  const baseCores = this.colorSchemeDonut.domain;
-  const qtdSeries = this.areaChartDataM3.length;
-
-  if (qtdSeries <= baseCores.length) return this.colorSchemeDonut;
-
-  // Gerar mais cores via HSL
-  const extras: string[] = [];
-  for (let i = baseCores.length; i < qtdSeries; i++) {
-    const hue = (i * 137.508) % 360; // golden angle
-    extras.push(`hsl(${hue}, 65%, 55%)`);
-  }
-  return { domain: [...baseCores, ...extras] };
-}
 }

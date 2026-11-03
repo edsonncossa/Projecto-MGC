@@ -88,8 +88,7 @@ public class ImportServices {
         if (!matcher.matches()) {
             System.err.println(
                     "Nome do ficheiro inválido: '" + cleanFileName + 
-                    "'. O padrão esperado é 'Hlog - NomeCliente - AAAA MM.ext' (ex: 'Hlog - Parmalat - 2026 06.csv')."
-                );
+                    "'. O padrão esperado é 'Hlog - NomeCliente - AAAA MM.ext' (ex: 'Hlog - Parmalat - 2026 06.csv')." );
             INVALID_NAMING_FILES.add(cleanFileName); 
             return; 
         }
@@ -113,6 +112,7 @@ public class ImportServices {
         fileImport.setClient(client);
         fileImport.setClientId(client.getId());
         fileImport = fileImportRepository.saveAndFlush(fileImport);
+        
 
         try (InputStream inputStream = googleDriveService.getFileInputStream(fileId)) {
             List<ConsumptionEntity> consumptionsToSave;
@@ -132,10 +132,10 @@ public class ImportServices {
 
                 consumptionRepository.saveAll(consumptionsToSave);
             }
-            System.out.println("✅ Importação concluída! " + consumptionsToSave.size() + " registos inseridos (" + cleanFileName + ")");
+            System.out.println("✅ Importação concluída! " + consumptionsToSave.size() + " registos inseridos (" + cleanFileName + ")");	
 
         } catch (Exception e) {
-            throw new RuntimeException("Erro ao processar ficheiro " + cleanFileName + ": " + e.getMessage(), e);
+            throw new RuntimeException("Erro ao processar ficheiro " + cleanFileName + ": " + e.getMessage(), e);	
         }
     }
 
