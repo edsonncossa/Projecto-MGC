@@ -33,6 +33,12 @@ public class ClientEntity extends AuditableEntity {
 	@Column(name = "TYPE", nullable = true)
 	@Enumerated(EnumType.STRING)
 	ClientType type;
+	
+	@Column(name = "LATITUDE", nullable = true)
+	private Double latitude;
+
+	@Column(name = "LONGITUDE", nullable = true)
+	private Double longitude;
 
 	public ClientEntity() {
 		super();
@@ -92,6 +98,22 @@ public class ClientEntity extends AuditableEntity {
 	@Override
 	public int hashCode() {
 		return Objects.hash(firstName, phoneNumber, address, email, type);
+	}
+
+	public Double getLatitude() {
+		return latitude;
+	}
+
+	public void setLatitude(Double latitude) {
+		this.latitude = latitude;
+	}
+
+	public Double getLongitude() {
+		return longitude;
+	}
+
+	public void setLongitude(Double longitude) {
+		this.longitude = longitude;
 	}
 
 }

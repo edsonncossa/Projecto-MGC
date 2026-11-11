@@ -1,9 +1,4 @@
 import { Component, OnInit, OnDestroy, ChangeDetectorRef, ChangeDetectionStrategy } from '@angular/core';
-import { CommonModule } from '@angular/common';
-import { FormsModule } from '@angular/forms';
-import { NgxChartsModule } from '@swimlane/ngx-charts';
-import { MatButtonModule } from '@angular/material/button';
-import { MatIconModule } from '@angular/material/icon';
 
 import { ClientService } from '@app/services/client.service';
 import { ConsumptionService } from '@app/services/consumption.service';
@@ -11,19 +6,9 @@ import { Client } from '@app/shared/models/client';
 import { finalize, debounceTime } from 'rxjs/operators';
 import { forkJoin, Observable, Subject, Subscription } from 'rxjs';
 import { curveMonotoneX } from 'd3-shape';
+import { NbToastrService } from '@nebular/theme';
 
-import {
-  NbAlertModule,
-  NbCardModule,
-  NbIconModule,
-  NbSelectModule,
-  NbListModule,
-  NbButtonModule,
-  NbInputModule,
-  NbSpinnerModule,
-  NbDatepickerModule,
-  NbToastrService
-} from '@nebular/theme';
+
 import { CertificadoDashboardDTO, CertificadoService } from '@app/services/certificado.service';
 
 type ViewMode = 'MONTHLY' | 'YEARLY' | 'RANGE' | 'MONTHCOMPARATION' | 'YEARCOMPARATION' | 'ENTRADA_VS_SAIDA';
@@ -68,24 +53,9 @@ interface ResumoEntradaSaida {
   selector: 'app-dashboard-list',
   templateUrl: './dashboard-list.component.html',
   styleUrls: ['./dashboard-list.component.scss'],
-  standalone: true,
+  //standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [
-    CommonModule,
-    MatButtonModule,
-    MatIconModule,
-    FormsModule,
-    NbAlertModule,
-    NbCardModule,
-    NbButtonModule,
-    NbIconModule,
-    NbInputModule,
-    NbSelectModule,
-    NbListModule,
-    NbSpinnerModule,
-    NbDatepickerModule,
-    NgxChartsModule
-  ]
+
 })
 export class DashboardListComponent implements OnInit, OnDestroy {
   isLoading = false;
@@ -333,7 +303,7 @@ export class DashboardListComponent implements OnInit, OnDestroy {
     this.recarregarDadosDashboard();
   }
 
-  /** Repõe todos os filtros no estado inicial (não mexe no Energy Content, que é um dado de entrada). */
+  /** Repõe todos os filtros no estado inicial, incluindo o Energy Content (global e mensal). */
   limparFiltros(): void {
     this.cancelarPedidoAtivo();
     this.viewMode = null;
@@ -346,6 +316,7 @@ export class DashboardListComponent implements OnInit, OnDestroy {
     this.startDate = null;
     this.endDate = null;
     this.monthlyEnergyContent = new Array(12).fill(null);
+    this.energyContentMjSm3 = null;
     this.atualizarListaClientesFiltrada();
     this.resetMetrics();
     this.cdr.markForCheck();
@@ -1178,13 +1149,15 @@ export class DashboardListComponent implements OnInit, OnDestroy {
             faltaContent = true;
             mesesSemContent.add(item.name);
           }
-          // Não arredondar antes de somar: arredondar cada ponto a 2 casas acumula erro.
           const gj = this.m3ParaGJ(item.value, content);
           acumulado += gj;
           return { name: item.name, value: this.arred(gj, 4) };
         });
+        
         totaisGJ.push(acumulado);
-        return { name: dataset.name, series };
+
+        const nome = dataset.name === 'Consumo Real (m³)' ? 'Energia Real (GJ)' : dataset.name;
+        return { name: nome, series };
       });
 
       if (faltaContent) {
@@ -1203,7 +1176,6 @@ export class DashboardListComponent implements OnInit, OnDestroy {
     this.atualizarApoioGraficos();
   }
 
-  /** Totais de energia e linhas dos KPIs conforme o modo (normal / comparação / entradas vs saídas). */
   private aplicarResumoEnergia(totaisGJ: number[]): void {
     if (this.modoKpi === 'ENTRADA_SAIDA' && this.totaisES) {
       const t = this.totaisES;
@@ -1269,9 +1241,7 @@ export class DashboardListComponent implements OnInit, OnDestroy {
       : null;
   }
 
-  /** Atualiza referências e cores UMA vez por carregamento (e não a cada ciclo de deteção de mudanças). */
   private atualizarApoioGraficos(): void {
-    // A linha de referência é a média POR PONTO do gráfico (dia ou mês), para ser coerente com o eixo.
     const media = (datasets: any[]): number => {
       let soma = 0;
       let n = 0;
@@ -1352,9 +1322,6 @@ export class DashboardListComponent implements OnInit, OnDestroy {
     return { pico, minimo };
   }
 
-  // ===================== CERTIFICADO =====================
-
-  /** "Novembro / 2026", "2026" ou "01/11/2026 - 03/11/2026", conforme a visão (antes saía " / 2026"). */
   private get periodoFormatado(): string {
     if (this.viewMode === 'MONTHLY' && this.selectedMonth !== null && this.selectedYear !== null) {
       return `${this.meses[Number(this.selectedMonth)]} / ${this.selectedYear}`;
@@ -1370,63 +1337,12 @@ export class DashboardListComponent implements OnInit, OnDestroy {
     return '';
   }
 
-  emitirCertificado(): void {
-    if (!this.isFiltrosValidosForCertificado) {
-      this.toastrService.warning('Selecione uma única estação e um período (mês, ano ou intervalo) antes de emitir.', 'Filtros Incompletos');
-      return;
-    }
-    if (this.totalVolumeConsumido <= 0) {
-      this.toastrService.warning('Não há consumo para o período selecionado.', 'Sem dados');
-      return;
-    }
-
-    const payload: CertificadoDashboardDTO = {
-      customerName: this.nomeClienteSelecionado,
-      monthYear: this.periodoFormatado,
-      totalVolumeM3: this.totalVolumeConsumido,
-      totalEnergyGj: this.totalEnergiaConsumidaGJ,
-      dailyAvgM3: this.mediaConsumoDiarioM3,
-      dailyAvgGj: this.mediaConsumoDiarioGJ,
-      energyContentMjSm3: this.energyContentMjSm3
-    };
-
-    this.spinnerVisible = true;
-    this.cdr.markForCheck();
-
-    this.certificadoService.gerarCertificado(payload).subscribe({
-      next: (blob: Blob) => {
-        this.spinnerVisible = false;
-        const blobUrl = URL.createObjectURL(blob);
-        const janela = window.open(blobUrl, '_blank');
-        if (!janela) {
-          // Pop-up bloqueado (o pedido é assíncrono): descarrega o ficheiro.
-          const a = document.createElement('a');
-          a.href = blobUrl;
-          a.download = 'certificado.pdf';
-          a.click();
-        }
-        setTimeout(() => URL.revokeObjectURL(blobUrl), 10000);
-        this.toastrService.success('Certificado gerado com sucesso!', 'Sucesso');
-        this.cdr.markForCheck();
-      },
-      error: (err) => {
-        this.spinnerVisible = false;
-        console.error('Erro ao gerar certificado:', err);
-        this.toastrService.danger('Erro ao gerar o PDF.', 'Erro');
-        this.cdr.markForCheck();
-      }
-    });
-  }
-
-  // ===================== GETTERS LEVES =====================
-
   get modoKpi(): ModoKpi {
     if (this.viewMode === 'ENTRADA_VS_SAIDA') return 'ENTRADA_SAIDA';
     if (this.viewMode === 'MONTHCOMPARATION' || this.viewMode === 'YEARCOMPARATION') return 'COMPARACAO';
     return 'NORMAL';
   }
 
-  /** Donut e barras por estação só fazem sentido nas visões normais. */
   get mostrarRanking(): boolean {
     return this.modoKpi === 'NORMAL' && (this.isAllClientsSelected || this.isMultiplosClientesSelecionados);
   }
@@ -1455,7 +1371,9 @@ export class DashboardListComponent implements OnInit, OnDestroy {
   get temFiltrosAtivos(): boolean {
     return this.viewMode !== null ||
            !this.selectedCategories.includes('ALL') ||
-           !this.isAllClientsSelected;
+           !this.isAllClientsSelected ||
+           Number(this.energyContentMjSm3) > 0 ||
+           this.monthlyEnergyContent.some(v => Number(v) > 0);
   }
 
   get isFiltrosValidosForCertificado(): boolean {

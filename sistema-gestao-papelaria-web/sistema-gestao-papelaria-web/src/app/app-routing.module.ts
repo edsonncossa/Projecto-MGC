@@ -70,6 +70,11 @@ const routes: Routes = [
       .then(m => m.CorrectorModule),
     canActivate: [AuthGuard]
   },
+    {
+    path: 'maps',
+    loadChildren: () => import('./pages/maps/maps.module').then(m => m.MapsModule),
+    canActivate: [AuthGuard]
+  },
   {
     path: '**',
     redirectTo: 'dashboard',

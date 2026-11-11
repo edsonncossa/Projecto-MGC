@@ -1,5 +1,6 @@
 package mz.com.sgp.repository;
 
+import java.util.List;
 import java.util.Optional;
 
 import org.springframework.data.domain.Page;
@@ -38,5 +39,7 @@ public interface ClientRepository extends JpaRepository<ClientEntity, Long> {
     
     @Query("SELECT c FROM ClientEntity c WHERE LOWER(c.firstName) = LOWER(:firstName) ORDER BY c.id DESC")
     Optional<ClientEntity> findFirstByFirstNameIgnoreCase(@Param("firstName") String firstName);
+    
+    List<ClientEntity> findByStatusOrderByFirstNameAsc(EntityState status);
 
 }

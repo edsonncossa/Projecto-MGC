@@ -21,6 +21,10 @@ public class ClientDTO extends  AuditableDTO<ClientDTO> {
 	private String email;
 	
 	ClientType type;
+	
+	private Double latitude;
+	
+	private Double longitude;
 
 
 	public ClientDTO() {
@@ -81,6 +85,22 @@ public class ClientDTO extends  AuditableDTO<ClientDTO> {
 	@Override
 	public int hashCode() {
 		return Objects.hash(firstName, phoneNumber, address, email, type);
+	}
+
+	public Double getLatitude() {
+		return latitude;
+	}
+
+	public void setLatitude(Double latitude) {
+		this.latitude = latitude;
+	}
+
+	public Double getLongitude() {
+		return longitude;
+	}
+
+	public void setLongitude(Double longitude) {
+		this.longitude = longitude;
 	}
 
 }

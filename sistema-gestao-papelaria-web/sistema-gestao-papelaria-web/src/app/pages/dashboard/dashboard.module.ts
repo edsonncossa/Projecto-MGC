@@ -13,12 +13,24 @@ import { MatDatepickerModule } from "@angular/material/datepicker";
 import { MatTableModule } from '@angular/material/table';
 import { MatNativeDateModule } from '@angular/material/core';
 import { MatChipsModule } from '@angular/material/chips';
+import {
+  NbAlertModule,
+  NbCardModule,
+  NbIconModule,
+  NbSelectModule,
+  NbListModule,
+  NbButtonModule,
+  NbInputModule,
+  NbSpinnerModule,
+  NbDatepickerModule,
+} from '@nebular/theme';
 
 
 
 @NgModule({
   declarations: [
-    DashboardComponent
+    DashboardComponent,
+    DashboardListComponent
   ],
   imports: [
     CommonModule,
@@ -32,8 +44,16 @@ import { MatChipsModule } from '@angular/material/chips';
     NgxChartsModule,
     MatFormFieldModule,
     MatNativeDateModule,
-    MatChipsModule,
-    DashboardListComponent,
+        NbAlertModule,
+        NbCardModule,
+        NbButtonModule,
+        NbIconModule,
+        NbInputModule,
+        NbSelectModule,
+        NbListModule,
+        NbSpinnerModule,
+        NbDatepickerModule,
+    
     MatDatepickerModule
   ],
       schemas: [CUSTOM_ELEMENTS_SCHEMA]

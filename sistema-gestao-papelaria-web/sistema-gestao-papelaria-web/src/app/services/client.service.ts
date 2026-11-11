@@ -1,6 +1,6 @@
 import { HttpClient, HttpParams, HttpResponse } from "@angular/common/http";
 import { inject, Injectable } from "@angular/core";
-import { Client } from "@app/shared/models/client";
+import { Client, StationLocation } from "@app/shared/models/client";
 import { Observable } from "rxjs";
 import { environment } from "src/environments/environment";
 7
@@ -53,6 +53,14 @@ export class ClientService {
 
     return this.http.get<any>(this.baseURL, { params });
   }
+
+  findLocations(): Observable<StationLocation[]> {
+  return this.http.get<StationLocation[]>(`${this.baseURL}/locations`);
+}
+
+updateLocation(id: number, latitude: number, longitude: number): Observable<StationLocation> {
+  return this.http.patch<StationLocation>(`${this.baseURL}/${id}/location`, { latitude, longitude });
+}
 
   create(client: Client): Observable<Client> {
     return this.http.post<Client>(this.baseURL, client);

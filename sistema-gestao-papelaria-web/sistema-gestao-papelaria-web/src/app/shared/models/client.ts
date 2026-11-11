@@ -6,6 +6,8 @@ export interface Client extends Auditable{
   address: string;
   email: string;
   type: ClientType;
+    latitude?: number | null;
+  longitude?: number | null;
 }
 
 export enum ClientType {
@@ -15,6 +17,14 @@ export enum ClientType {
 export const ClientTypeLabel: Record<ClientType, string> = {
   [ClientType.COMPANY]: 'Empresa'
 };
+
+export interface StationLocation {
+  id: number;
+  firstName: string;
+  address?: string | null;
+  latitude: number | null;
+  longitude: number | null;
+}
 
 export interface PagedClients {
   _embedded?: {

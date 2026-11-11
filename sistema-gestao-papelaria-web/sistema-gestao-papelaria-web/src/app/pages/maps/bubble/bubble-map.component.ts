@@ -18,13 +18,13 @@ import { registerMap } from 'echarts';
 export class BubbleMapComponent implements OnDestroy {
 
   latlong: any = {};
-  mapData: any[];
+  mapData!: any[];
   max = -Infinity;
   min = Infinity;
   options: any;
 
   bubbleTheme: any;
-  geoColors: any[];
+  geoColors!: any[];
 
   private alive = true;
 
@@ -478,7 +478,7 @@ export class BubbleMapComponent implements OnDestroy {
           },
           tooltip: {
             trigger: 'item',
-            formatter: params => {
+            formatter: (params: any)  => {
               return `${params.name}: ${params.value[2]}`;
             },
           },

@@ -36,6 +36,20 @@ export class AppComponent implements OnInit, AfterContentInit, OnDestroy {
   public auth = inject(AuthService);
   private nbMenuService = inject(NbMenuService);
 
+  center: google.maps.LatLngLiteral = { lat: -25.9653, lng: 32.5892 };
+  zoom = 12;
+
+  // Lista tradicional de marcadores
+  markers = [
+    { position: { lat: -25.9653, lng: 32.5892 }, title: 'Marcador 1' },
+    { position: { lat: -25.9550, lng: 32.5950 }, title: 'Marcador 2' }
+  ];
+
+  alterarLocalizacao(): void {
+    this.center = { lat: -25.9400, lng: 32.6100 };
+    this.zoom = 14;
+  }
+
   // Destruição de subscriptions
   private destroy$ = new Subject<void>();
 

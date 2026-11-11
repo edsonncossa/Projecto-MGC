@@ -20,11 +20,11 @@ export const MENU_ITEMS: NbMenuItem[] = [
     title: 'LOCALIZAÇÃO DAS ESTAÇÕES  ',
     group: true,
   },
-  {
-    title: 'Mapa de Localização',
-    icon: 'map',
-    link: '',
-  },
+{
+  title: 'Mapa de Localização',
+  icon: 'map',
+  link: '/maps',
+},
 
     /*{
     title: 'Emitir Certificado',

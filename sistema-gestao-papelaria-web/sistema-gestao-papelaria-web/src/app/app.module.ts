@@ -28,6 +28,9 @@ import { AppRoutingModule } from './app-routing.module';
 import { AuthInterceptor } from './shared/interceptors/auth.interceptor'; 
 import { LoadingInterceptor } from './shared/interceptors/loading.interceptor';
 
+//Mapa
+import { GoogleMapsModule } from '@angular/google-maps';
+
 @NgModule({
   declarations: [
     AppComponent,
@@ -62,7 +65,10 @@ import { LoadingInterceptor } from './shared/interceptors/loading.interceptor';
     NbIconModule,
     NbButtonModule,
     NbSpinnerModule,
-    NbEvaIconsModule
+    NbEvaIconsModule,
+
+    //maps
+    GoogleMapsModule
   ],
   providers: [
     {

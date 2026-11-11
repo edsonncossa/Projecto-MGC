@@ -2,6 +2,8 @@ package mz.com.sgp.services;
 
 import static mz.com.sgp.mapper.ObjectMapper.parseObject;
 
+import java.util.List;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -12,17 +14,20 @@ import org.springframework.hateoas.EntityModel;
 import org.springframework.hateoas.Link;
 import org.springframework.hateoas.PagedModel;
 import org.springframework.hateoas.server.mvc.WebMvcLinkBuilder;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.web.server.ResponseStatusException;
 
 import jakarta.transaction.Transactional;
 import mz.com.sgp.config.audit.entity.EntityState;
 import mz.com.sgp.controllers.ClientController;
 import mz.com.sgp.data.dto.ClientDTO;
+import mz.com.sgp.data.dto.ClientLocationDTO;
+import mz.com.sgp.data.dto.ClientLocationRequest;
 import mz.com.sgp.exception.ResourceNotFoundException;
 import mz.com.sgp.model.ClientEntity;
-import mz.com.sgp.model.CorrectorEntity;
 import mz.com.sgp.repository.ClientRepository;
-import mz.com.sgp.repository.CorrectorRepository;
+
 
 @Service
 public class ClientServices {
@@ -109,6 +114,40 @@ public class ClientServices {
         return dto;
     }
     
+    public List<ClientLocationDTO> findLocations() {
+        return clientRepository.findByStatusOrderByFirstNameAsc(EntityState.ACTIVE)
+                .stream()
+                .map(this::toLocationDTO)
+                .toList();
+    }
+
+    @Transactional
+    public ClientLocationDTO updateLocation(Long id, ClientLocationRequest request) {
+        logger.info("A atualizar a localização da estação " + id);
+
+        if (request == null || request.latitude() == null || request.longitude() == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Latitude e longitude são obrigatórias.");
+        }
+        if (request.latitude() < -90 || request.latitude() > 90
+                || request.longitude() < -180 || request.longitude() > 180) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Coordenadas fora do intervalo válido.");
+        }
+
+        ClientEntity entity = clientRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Não foi encontrada estação com o id: " + id));
+
+        entity.setLatitude(request.latitude());
+        entity.setLongitude(request.longitude());
+
+        return toLocationDTO(clientRepository.save(entity));
+    }
+
+    private ClientLocationDTO toLocationDTO(ClientEntity e) {
+        return new ClientLocationDTO(e.getId(), e.getFirstName(), e.getAddress(),
+                e.getLatitude(), e.getLongitude());
+    }
     
     public long countClients() {
         return clientRepository.countByStatus(EntityState.ACTIVE);

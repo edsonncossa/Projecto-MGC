@@ -11,7 +11,7 @@ export class SearchComponent implements OnInit {
   positionChanged: EventEmitter<PositionModel> = new EventEmitter<PositionModel>();
 
   @ViewChild('search', { static: true })
-  searchElementRef: ElementRef;
+  searchElementRef!: ElementRef; // 🌟 Corrigido com !
 
   constructor(private ngZone: NgZone) {}
 
@@ -22,14 +22,14 @@ export class SearchComponent implements OnInit {
 
     autocomplete.addListener('place_changed', () => {
       this.ngZone.run(() => {
-        // get the place result
         const place: google.maps.places.PlaceResult = autocomplete.getPlace();
 
-        // verify result
-        if (place.geometry === undefined || place.geometry === null) {
+        // Validação estrita contra valores nulos ou indefinidos
+        if (!place || !place.geometry || !place.geometry.location) {
           return;
         }
 
+        // 🌟 Corrigido usando as propriedades validadas com segurança
         this.positionChanged.emit(new PositionModel(
           place.geometry.location.lat(),
           place.geometry.location.lng(),

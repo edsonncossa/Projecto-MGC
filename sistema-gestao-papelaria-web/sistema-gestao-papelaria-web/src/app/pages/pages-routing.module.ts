@@ -28,6 +28,11 @@ const routes: Routes = [{
       loadChildren: () => import('./forms/forms.module')
         .then(m => m.FormsModule),
     },
+        {
+      path: 'maps',
+      loadChildren: () => import('./maps/maps.module')
+        .then(m => m.MapsModule),
+    },
     {
       path: 'ui-features',
       loadChildren: () => import('./ui-features/ui-features.module')
@@ -43,11 +48,7 @@ const routes: Routes = [{
       loadChildren: () => import('./extra-components/extra-components.module')
         .then(m => m.ExtraComponentsModule),
     },
-    {
-      path: 'maps',
-      loadChildren: () => import('./maps/maps.module')
-        .then(m => m.MapsModule),
-    },
+
     {
       path: 'charts',
       loadChildren: () => import('./charts/charts.module')

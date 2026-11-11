@@ -1,8 +1,127 @@
 <nb-card>
-  <nb-card-header>Google Maps</nb-card-header>
-  <nb-card-body>
-    <google-map [center]="position" [zoom]="8" width="100%" height="36.5625rem">
-      <map-marker [position]="position"></map-marker>
-    </google-map>
+  <nb-card-header class="cabecalho">
+    <span>Mapa de Localização das Estações</span>
+    <span class="resumo" *ngIf="!carregando">
+      {{ totalLocalizadas }} de {{ estacoes.length }} localizadas
+    </span>
+  </nb-card-header>
+
+  <nb-card-body class="layout">
+
+    <!-- ===== Painel lateral ===== -->
+    <aside class="painel">
+      <input class="pesquisa"
+             type="search"
+             placeholder="Pesquisar estação"
+             aria-label="Pesquisar estação"
+             [value]="filtroTexto"
+             (input)="filtroTexto = $any($event.target).value">
+
+      <div class="filtros">
+        <button type="button" [class.ativo]="!apenasSemLocalizacao" (click)="apenasSemLocalizacao = false">
+          Todas
+        </button>
+        <button type="button" [class.ativo]="apenasSemLocalizacao" (click)="apenasSemLocalizacao = true">
+          Sem localização ({{ estacoes.length - totalLocalizadas }})
+        </button>
+        <button type="button" class="vista" (click)="ajustarVista()" title="Mostrar todas as estações localizadas">
+          Ver todas
+        </button>
+      </div>
+
+      <ul class="lista">
+        <li *ngFor="let e of estacoesFiltradas"
+            [class.ativa]="e === selecionada"
+            (click)="selecionar(e)">
+          <span class="ponto" [class.ok]="temLocalizacao(e)"></span>
+          <span class="nome">{{ e.firstName }}</span>
+          <small>{{ temLocalizacao(e) ? 'Localizada' : 'Sem localização' }}</small>
+        </li>
+        <li class="vazio" *ngIf="carregando">A carregar estações…</li>
+        <li class="vazio" *ngIf="!carregando && estacoesFiltradas.length === 0">
+          Nenhuma estação encontrada.
+        </li>
+      </ul>
+
+      <!-- ===== Painel de ação da estação escolhida ===== -->
+      <section class="acao" *ngIf="selecionada">
+        <h4>{{ selecionada.firstName }}</h4>
+
+        <!-- 1. Há uma posição provisória: falta confirmar -->
+        <ng-container *ngIf="pendente">
+          <p class="estado provisorio">Posição provisória, ainda não guardada</p>
+          <p class="coords">
+            {{ formatarCoordenada(pendente.lat) }}, {{ formatarCoordenada(pendente.lng) }}
+          </p>
+          <p class="dica">Arraste o marcador laranja para afinar a posição.</p>
+
+          <p class="aviso" *ngIf="distanciaGrande">
+            Atenção: fica a {{ formatarDistancia(distanciaAtual!) }} da localização atual.
+          </p>
+          <p class="aviso" *ngIf="foraDeMocambique">
+            Atenção: esta posição fica fora de Moçambique.
+          </p>
+
+          <div class="botoes">
+            <button type="button" class="principal" [disabled]="aGuardar" (click)="confirmar()">
+              {{ aGuardar ? 'A guardar…' : 'Guardar localização' }}
+            </button>
+            <button type="button" [disabled]="aGuardar" (click)="cancelar()">Cancelar</button>
+          </div>
+        </ng-container>
+
+        <!-- 2. Sem posição e ainda sem clique -->
+        <ng-container *ngIf="!pendente && !temLocalizacao(selecionada)">
+          <p class="estado">Sem localização</p>
+          <p class="dica">Clique no mapa onde fica a estação. Poderá ajustar antes de guardar.</p>
+        </ng-container>
+
+        <!-- 3. Já localizada -->
+        <ng-container *ngIf="!pendente && temLocalizacao(selecionada)">
+          <p class="estado ok">Localizada</p>
+          <p class="coords">
+            {{ formatarCoordenada(selecionada.latitude) }}, {{ formatarCoordenada(selecionada.longitude) }}
+          </p>
+
+          <p class="dica" *ngIf="reposicionar">Clique no mapa para escolher a nova posição.</p>
+
+          <div class="botoes">
+            <button type="button" *ngIf="!reposicionar" (click)="iniciarReposicionamento()">Reposicionar</button>
+            <button type="button" *ngIf="reposicionar" (click)="cancelar()">Cancelar</button>
+            <button type="button" *ngIf="podeDesfazer" [disabled]="aGuardar" (click)="desfazer()">
+              Desfazer última alteração
+            </button>
+          </div>
+        </ng-container>
+      </section>
+    </aside>
+
+    <!-- ===== Mapa ===== -->
+    <div class="mapa-wrap">
+      <div class="map"
+           [class.modo-marcar]="podeMarcar"
+           leaflet
+           [leafletOptions]="options"
+           [leafletLayers]="layers"
+           [leafletLayersControl]="layersControl"
+           [leafletLayersControlOptions]="layersControlOptions"
+           (leafletMapReady)="onMapReady($event)"
+           (leafletClick)="onMapClick($event)">
+      </div>
+
+      <div class="banner" *ngIf="selecionada && podeMarcar && !pendente">
+        Clique no mapa para posicionar <strong>{{ selecionada.firstName }}</strong>
+      </div>
+      <div class="banner provisorio" *ngIf="pendente">
+        Posição provisória: guarde ou cancele no painel (Esc cancela)
+      </div>
+
+      <div class="legenda">
+        <span><i class="cor guardada"></i>Localizada</span>
+        <span><i class="cor selecionada"></i>Escolhida</span>
+        <span><i class="cor provisoria"></i>Provisória</span>
+      </div>
+    </div>
+
   </nb-card-body>
 </nb-card>

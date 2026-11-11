@@ -1,6 +1,9 @@
 package mz.com.sgp.controllers;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import java.util.List;
+import mz.com.sgp.data.dto.ClientLocationDTO;
+import mz.com.sgp.data.dto.ClientLocationRequest;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
@@ -75,6 +78,19 @@ public class ClientController implements ClientControllerDocs {
     @Override
     public ClientDTO disableClient(@PathVariable("id") Long id) {
         return clientServices.disableClient(id);
+    }
+    
+    @GetMapping(value = "/locations", produces = MediaType.APPLICATION_JSON_VALUE)
+    public List<ClientLocationDTO> findLocations() {
+        return clientServices.findLocations();
+    }
+
+    @PatchMapping(value = "/{id}/location",
+            consumes = MediaType.APPLICATION_JSON_VALUE,
+            produces = MediaType.APPLICATION_JSON_VALUE)
+    public ClientLocationDTO updateLocation(@PathVariable("id") Long id,
+                                            @RequestBody ClientLocationRequest request) {
+        return clientServices.updateLocation(id, request);
     }
     
     @GetMapping("/countClients")
