@@ -1,6 +1,7 @@
 $guardada: #00b383;
 $selecionada: #0a5c8a;
 $provisoria: #ff9f1a;
+$pesquisa: #7b3fe4;
 $perigo: #c92a4f;
 $borda: rgba(120, 130, 145, 0.28);
 $texto-suave: #6b7686;
@@ -149,6 +150,110 @@ $texto-suave: #6b7686;
     small {
       grid-column: 2;
       color: $texto-suave;
+    }
+  }
+}
+
+/* ---------- Ir para coordenadas ---------- */
+
+.coordenadas {
+  padding: 0.9rem;
+  border: 1px solid $borda;
+  border-left: 4px solid $pesquisa;
+  border-radius: 8px;
+
+  h4 {
+    margin: 0 0 0.5rem;
+    font-size: 1rem;
+  }
+
+  .campos {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.5rem;
+
+    label {
+      display: flex;
+      flex-direction: column;
+      gap: 0.2rem;
+      font-size: 0.78rem;
+      color: $texto-suave;
+      min-width: 0;
+    }
+
+    input {
+      width: 100%;
+      padding: 0.45rem 0.6rem;
+      border: 1px solid $borda;
+      border-radius: 8px;
+      font: inherit;
+      font-size: 0.85rem;
+      font-variant-numeric: tabular-nums;
+      background: transparent;
+      color: inherit;
+
+      &:focus-visible {
+        outline: 2px solid $pesquisa;
+        outline-offset: 1px;
+      }
+    }
+  }
+
+  p {
+    margin: 0.5rem 0 0;
+  }
+
+  .erro,
+  .aviso {
+    padding: 0.45rem 0.6rem;
+    border-radius: 6px;
+    background: rgba(201, 42, 79, 0.08);
+    color: $perigo;
+    font-size: 0.82rem;
+  }
+
+  .aviso {
+    background: rgba(255, 159, 26, 0.14);
+    color: darken($provisoria, 20%);
+  }
+
+  .dica {
+    font-size: 0.78rem;
+    color: $texto-suave;
+  }
+
+  .botoes {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-top: 0.6rem;
+
+    button {
+      padding: 0.45rem 0.8rem;
+      border: 1px solid $borda;
+      border-radius: 8px;
+      background: transparent;
+      color: inherit;
+      font: inherit;
+      font-size: 0.85rem;
+      cursor: pointer;
+
+      &.principal {
+        background: $pesquisa;
+        border-color: $pesquisa;
+        color: #fff;
+        font-weight: 600;
+      }
+
+      &:disabled {
+        opacity: 0.55;
+        cursor: not-allowed;
+      }
+
+      &:focus-visible {
+        outline: 2px solid $pesquisa;
+        outline-offset: 2px;
+      }
     }
   }
 }
@@ -303,6 +408,7 @@ $texto-suave: #6b7686;
     &.guardada { background: $guardada; }
     &.selecionada { background: $selecionada; }
     &.provisoria { background: $provisoria; }
+    &.pesquisa { background: $pesquisa; }
   }
 }
 

@@ -29,6 +29,46 @@
         </button>
       </div>
 
+      <!-- ===== Ir para coordenadas ===== -->
+      <section class="coordenadas">
+        <h4>Ir para coordenadas</h4>
+        <div class="campos">
+          <label>
+            Latitude
+            <input type="text"
+                   inputmode="decimal"
+                   placeholder="-25,965300"
+                   autocomplete="off"
+                   [value]="coordLat"
+                   (input)="coordLat = $any($event.target).value"
+                   (paste)="aoColar($event)"
+                   (keydown.enter)="mostrarCoordenadas()">
+          </label>
+          <label>
+            Longitude
+            <input type="text"
+                   inputmode="decimal"
+                   placeholder="32,589200"
+                   autocomplete="off"
+                   [value]="coordLng"
+                   (input)="coordLng = $any($event.target).value"
+                   (keydown.enter)="mostrarCoordenadas()">
+          </label>
+        </div>
+
+        <p class="erro" *ngIf="erroCoordenadas">{{ erroCoordenadas }}</p>
+        <p class="aviso" *ngIf="avisoCoordenadas">{{ avisoCoordenadas }}</p>
+
+        <div class="botoes">
+          <button type="button" class="principal" (click)="mostrarCoordenadas()">Mostrar no mapa</button>
+          <button type="button" *ngIf="procurado || coordLat || coordLng" (click)="limparPesquisa()">Limpar</button>
+          <button type="button" *ngIf="procurado && podeMarcar" [disabled]="aGuardar" (click)="usarParaEstacao()">
+            Usar para {{ selecionada?.firstName }}
+          </button>
+        </div>
+        <p class="dica">Pode colar "latitude, longitude" no primeiro campo.</p>
+      </section>
+
       <ul class="lista">
         <li *ngFor="let e of estacoesFiltradas"
             [class.ativa]="e === selecionada"
@@ -120,6 +160,7 @@
         <span><i class="cor guardada"></i>Localizada</span>
         <span><i class="cor selecionada"></i>Escolhida</span>
         <span><i class="cor provisoria"></i>Provisória</span>
+        <span *ngIf="procurado"><i class="cor pesquisa"></i>Coordenadas</span>
       </div>
     </div>
 

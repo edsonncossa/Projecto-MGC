@@ -15,6 +15,10 @@ const LIMITES_MOCAMBIQUE = L.latLngBounds([-26.9, 30.2], [-10.4, 40.9]);
 const COR_GUARDADA = '#00b383';
 const COR_SELECIONADA = '#0a5c8a';
 const COR_PROVISORIA = '#ff9f1a';
+const COR_PESQUISA = '#7b3fe4';
+
+/** Zoom mínimo ao mostrar umas coordenadas (nível de rua/edifício). */
+const ZOOM_COORDENADAS = 18;
 
 interface AlteracaoAnterior {
   estacao: StationLocation;
@@ -43,6 +47,7 @@ export class GmapsComponent implements OnInit {
     zoom: 12,
     center: L.latLng(-25.9653, 32.5892), // Maputo
     zoomControl: false,
+    attributionControl: false,
   };
 
   layersControl: LeafletControlLayersConfig = {
@@ -65,9 +70,17 @@ export class GmapsComponent implements OnInit {
   apenasSemLocalizacao = false;
   ultimaAlteracao: AlteracaoAnterior | null = null;
 
+  // Pesquisa por coordenadas
+  coordLat = '';
+  coordLng = '';
+  erroCoordenadas: string | null = null;
+  avisoCoordenadas: string | null = null;
+  procurado: L.LatLng | null = null;
+
   private map?: L.Map;
   private marcadores = new Map<number, L.Marker>();
   private rascunho?: L.Marker;
+  private marcadorPesquisa?: L.Marker;
 
   constructor(
     private clientService: ClientService,
@@ -277,6 +290,104 @@ export class GmapsComponent implements OnInit {
       });
   }
 
+  // ===================== Pesquisa por coordenadas =====================
+
+  /** Aceita "-25,9653" ou "-25.9653". Devolve NaN se não for um número válido. */
+  private lerNumero(texto: string): number {
+    const limpo = (texto ?? '').trim().replace(/\s+/g, '').replace(',', '.');
+    if (!/^[+-]?\d+(\.\d+)?$/.test(limpo)) return NaN;
+    return Number(limpo);
+  }
+
+  /** Se colar "-25.9653, 32.5892" no campo da latitude, separa os dois valores. */
+  aoColar(ev: ClipboardEvent): void {
+    const texto = ev.clipboardData?.getData('text') ?? '';
+    const partes =
+      texto.match(/^\s*([+-]?\d+(?:[.,]\d+)?)\s*[;\s]\s*([+-]?\d+(?:[.,]\d+)?)\s*$/) ||
+      texto.match(/^\s*([+-]?\d+(?:\.\d+)?)\s*,\s*([+-]?\d+(?:\.\d+)?)\s*$/);
+    if (!partes) return;
+
+    ev.preventDefault();
+    this.coordLat = partes[1];
+    this.coordLng = partes[2];
+    this.erroCoordenadas = null;
+    this.mostrarCoordenadas();
+  }
+
+  mostrarCoordenadas(): void {
+    this.erroCoordenadas = null;
+    this.avisoCoordenadas = null;
+
+    if (!this.coordLat.trim() || !this.coordLng.trim()) {
+      this.erroCoordenadas = 'Preencha a latitude e a longitude.';
+      return;
+    }
+
+    const lat = this.lerNumero(this.coordLat);
+    const lng = this.lerNumero(this.coordLng);
+
+    if (Number.isNaN(lat) || Number.isNaN(lng)) {
+      this.erroCoordenadas = 'Use apenas números decimais, por exemplo -25,965300.';
+      return;
+    }
+    if (lat < -90 || lat > 90) {
+      this.erroCoordenadas = 'A latitude tem de estar entre -90 e 90.';
+      return;
+    }
+    if (lng < -180 || lng > 180) {
+      this.erroCoordenadas = 'A longitude tem de estar entre -180 e 180.';
+      return;
+    }
+
+    const ponto = L.latLng(lat, lng);
+
+    if (!LIMITES_MOCAMBIQUE.contains(ponto)) {
+      this.avisoCoordenadas = LIMITES_MOCAMBIQUE.contains(L.latLng(-lat, lng))
+        ? 'Em Moçambique a latitude é negativa (hemisfério sul). Faltará o sinal "-"?'
+        : 'Atenção: estas coordenadas ficam fora de Moçambique.';
+    }
+
+    this.procurado = ponto;
+    this.desenharMarcadorPesquisa();
+
+    if (this.map) {
+      this.map.flyTo(ponto, Math.max(this.map.getZoom(), ZOOM_COORDENADAS), { duration: 0.8 });
+    }
+  }
+
+  limparPesquisa(): void {
+    this.coordLat = '';
+    this.coordLng = '';
+    this.erroCoordenadas = null;
+    this.avisoCoordenadas = null;
+    this.procurado = null;
+    this.marcadorPesquisa = undefined;
+    this.atualizarLayers();
+  }
+
+  /** Passa as coordenadas pesquisadas para a posição provisória da estação escolhida. */
+  usarParaEstacao(): void {
+    if (!this.procurado || !this.podeMarcar || this.aGuardar) return;
+    const ponto = this.procurado;
+    this.limparPesquisa();
+    this.definirPendente(ponto);
+  }
+
+  private desenharMarcadorPesquisa(): void {
+    if (!this.procurado) return;
+
+    const texto = `${this.formatarCoordenada(this.procurado.lat)}, ${this.formatarCoordenada(this.procurado.lng)}`;
+
+    this.marcadorPesquisa = L.marker(this.procurado, {
+      draggable: false,
+      icon: this.criarIcone(COR_PESQUISA, 'pesquisa'),
+      zIndexOffset: 1500,
+      keyboard: false,
+    }).bindTooltip(texto, { permanent: true, direction: 'top', offset: [0, -34] });
+
+    this.atualizarLayers();
+  }
+
   // ===================== Marcadores =====================
 
   private definirPendente(latlng: L.LatLng): void {
@@ -338,6 +449,7 @@ export class GmapsComponent implements OnInit {
   private atualizarLayers(): void {
     const camadas: L.Layer[] = Array.from(this.marcadores.values());
     if (this.rascunho) camadas.push(this.rascunho);
+    if (this.marcadorPesquisa) camadas.push(this.marcadorPesquisa);
     this.layers = camadas;
   }
 
