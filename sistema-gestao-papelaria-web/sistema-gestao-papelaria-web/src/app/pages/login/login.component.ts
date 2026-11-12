@@ -13,8 +13,10 @@ export class LoginComponent {
 
   hidePassword = true;
   form: FormGroup;
-  error: string | null = null;
-  submitted = false; // <-- Variável para controlar a tentativa de submissão
+  authError: string | null = null; // Erro de credenciais, mostrado junto aos campos
+  submitted = false; // Controla a exibição das validações após tentativa de submissão
+  loading = false;   // Estado de carregamento do botão
+  year = new Date().getFullYear();
 
   constructor(
     private fb: FormBuilder,
@@ -26,26 +28,23 @@ export class LoginComponent {
       username: ['', Validators.required],
       password: ['', Validators.required]
     });
+
+    // Assim que o utilizador volta a escrever, o erro de credenciais desaparece.
+    this.form.valueChanges.subscribe(() => {
+      if (this.authError) this.authError = null;
+    });
   }
 
   login() {
-    this.submitted = true; // Activa a exibição de validações apenas ao clicar em Entrar
+    if (this.loading) return;
 
-    if (this.form.invalid) {
-      const usernameInvalid = this.form.get('username')?.invalid;
-      const passwordInvalid = this.form.get('password')?.invalid;
+    this.submitted = true;
 
-      if (usernameInvalid && passwordInvalid) {
-        this.error = 'Insira o username e a password.';
-      } else if (usernameInvalid) {
-        this.error = 'Insira o username.';
-      } else if (passwordInvalid) {
-        this.error = 'Insira a password.';
-      }
-      return;
-    }
+    // As validações (campos vazios) aparecem em cada campo, através de `submitted`.
+    if (this.form.invalid) return;
 
-    this.error = null;
+    this.authError = null;
+    this.loading = true;
 
     const payload = {
       username: this.form.value.username.trim(),
@@ -54,22 +53,26 @@ export class LoginComponent {
 
     this.auth.login(payload).subscribe({
       next: () => {
+        this.loading = false;
         this.router.navigate(['/dashboard']);
       },
       error: (err) => {
-        const isAuthError = err.status === 401 || 
+        this.loading = false;
+
+        const isAuthError = err.status === 401 ||
                             (err.error && typeof err.error === 'string' && err.error.includes('Credenciais')) ||
                             (err.error?.message && err.error.message.includes('Credenciais')) ||
                             err.status === 500;
 
         if (isAuthError) {
-          this.error = 'Username ou Password incorreto!'; 
-        } else {
-          this.error = 'Ocorreu um erro ao conectar ao servidor.';
+          // Erro de credenciais: marca os dois campos e mostra a mensagem por baixo da password.
+          this.authError = 'Username ou password incorretos';
+          return;
         }
 
+        // Falha de ligação: não pertence a nenhum campo, por isso fica só no snackbar.
         try {
-          this.snackbar.error(this.error);
+          this.snackbar.error('Ocorreu um erro ao conectar ao servidor.');
         } catch (e) {
           console.warn('Snackbar falhou ao exibir:', e);
         }

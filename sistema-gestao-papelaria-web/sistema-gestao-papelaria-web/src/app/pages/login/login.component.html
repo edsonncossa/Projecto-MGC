@@ -1,43 +1,103 @@
-<div class="login-container">
-  <div class="login-card">
-    <div class="header">
-      <img src="assets/MGC-Logo.png" alt="Logo" class="logo" />
-      <h2>Gestão de Consumos</h2>
-      <p>Faça login para continuar</p>
-    </div>
-
-    <form [formGroup]="form" (ngSubmit)="login()">
-      <div class="input-group">
-        <label>Username</label>
-        <input type="text" formControlName="username" placeholder="Digite seu username" autocomplete="username" />
-
-        <small *ngIf="form.get('username')?.invalid && submitted">
-          Insira o username
-        </small>
-      </div>
-
-      <div class="input-group">
-        <label>Password</label>
-        <div class="password-wrapper">
-          <input [type]="hidePassword ? 'password' : 'text'" formControlName="password" placeholder="Digite sua senha"
-            autocomplete="current-password" />
-
-          <span (click)="hidePassword = !hidePassword">
-            {{ hidePassword ? "👁️" : "🙈" }}
-          </span>
-        </div>
-
-        <small *ngIf="form.get('password')?.invalid && submitted">
-          Insira a password
-        </small>
-      </div>
-
-      <button type="submit">Entrar</button>
-
-      <div *ngIf="error" class="error-alert">
-        <span class="error-icon">⚠️</span>
-        <span>{{ error }}</span>
-      </div>
-    </form>
+<div class="login-page">
+  <!-- Fundo animado -->
+  <div class="bg" aria-hidden="true">
+    <span class="blob blob-1"></span>
+    <span class="blob blob-2"></span>
+    <span class="blob blob-3"></span>
+    <span class="grid"></span>
+    <span class="noise"></span>
   </div>
+
+  <main class="shell">
+    <!-- Painel de marca -->
+    <aside class="brand-panel">
+      <div class="logo-wrap">
+        <img src="assets/MGC-Logo.png" alt="Logo MGC" class="logo" />
+      </div>
+
+      <div class="brand-copy">
+        <h1>Gestão de <span class="accent">Consumos</span></h1>
+        <p>Controle, acompanhe e analise os consumos num só lugar, de forma simples e segura.</p>
+
+        <ul class="highlights">
+          <li>
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5" /></svg>
+            Acesso seguro e protegido
+          </li>
+          <li>
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5" /></svg>
+            Informação organizada e actualizada
+          </li>
+        </ul>
+      </div>
+
+      <footer class="brand-foot">© {{ year }} MGC · Todos os direitos reservados</footer>
+    </aside>
+
+    <!-- Painel do formulário -->
+    <section class="form-panel">
+      <div class="form-head">
+        <div class="logo-mobile">
+          <img src="assets/MGC-Logo.png" alt="Logo MGC" />
+        </div>
+        <h2>Bem-vindo</h2>
+        <p>Faça login para continuar</p>
+      </div>
+
+      <form [formGroup]="form" (ngSubmit)="login()">
+        <!-- Username -->
+        <div class="field" [class.invalid]="(submitted && form.get('username')?.invalid) || authError">
+          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
+            <circle cx="12" cy="8" r="4" />
+            <path d="M4 20c0-3.6 3.6-6 8-6s8 2.4 8 6" />
+          </svg>
+          <input id="username" type="text" formControlName="username" placeholder=" " autocomplete="username" />
+          <label for="username">Username</label>
+        </div>
+        <small class="hint" *ngIf="submitted && form.get('username')?.invalid" role="alert">Insira o username</small>
+
+        <!-- Password -->
+        <div class="field" [class.invalid]="(submitted && form.get('password')?.invalid) || authError">
+          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
+            <rect x="4" y="10" width="16" height="10" rx="3" />
+            <path d="M8 10V7a4 4 0 018 0v3" />
+          </svg>
+          <input id="password" [type]="hidePassword ? 'password' : 'text'" formControlName="password" placeholder=" "
+            autocomplete="current-password" />
+          <label for="password">Password</label>
+
+          <button type="button" class="toggle" (click)="hidePassword = !hidePassword"
+            [attr.aria-label]="hidePassword ? 'Mostrar password' : 'Ocultar password'">
+            <svg *ngIf="hidePassword" viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z" />
+              <circle cx="12" cy="12" r="3" />
+            </svg>
+            <svg *ngIf="!hidePassword" viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M3 3l18 18" />
+              <path d="M10.6 6.1A10 10 0 0112 6c6.4 0 10 6 10 6a17 17 0 01-3.2 3.9M6.6 7.6A16.8 16.8 0 002 12s3.6 7 10 7a9.8 9.8 0 004.4-1" />
+              <path d="M9.9 9.9a3 3 0 004.2 4.2" />
+            </svg>
+          </button>
+        </div>
+        <small class="hint" *ngIf="submitted && form.get('password')?.invalid; else authHint" role="alert">Insira a password</small>
+        <ng-template #authHint>
+          <small class="hint" *ngIf="authError" role="alert">{{ authError }}</small>
+        </ng-template>
+
+        <button type="submit" class="submit" [disabled]="loading" [class.loading]="loading">
+          <span class="label">Entrar</span>
+          <svg class="arrow" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6" /></svg>
+          <span class="spinner" aria-hidden="true"></span>
+        </button>
+      </form>
+
+      <p class="secure-note">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <rect x="5" y="10" width="14" height="10" rx="2.5" />
+          <path d="M8 10V8a4 4 0 018 0v2" />
+        </svg>
+        Ligação segura e encriptada
+      </p>
+    </section>
+  </main>
 </div>

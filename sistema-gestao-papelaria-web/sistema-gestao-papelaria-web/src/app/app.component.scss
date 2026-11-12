@@ -1,3 +1,6 @@
+/* O fundo (blobs, grelha, vidro) e o estilo dos cartões vivem agora no tema global (mgc-theme.scss).
+   A imagem carbon-capture.webp e o branco forçado nos nb-card foram retirados daqui. */
+
 mat-sidenav-content {
   height: 100vh;
 }
@@ -27,44 +30,6 @@ mat-toolbar-row {
   &-title {
     padding: 52px 30px;
   }
-}
-
-nb-layout {
-  position: relative;
-  
-  /* Pseudo-elemento ::before para aplicar a imagem de fundo sem afetar o texto/cards */
-  &::before {
-    content: '';
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100vw;
-    height: 100vh;
-    z-index: 0;
-    
-    /* Caminho para a imagem de fundo */
-background-image: url('/assets/images/carbon-capture.webp');
-    background-size: cover;
-    background-position: center center;
-    background-repeat: no-repeat;
-    
-    /* Transparência e Blur para não ofuscar o conteúdo */
-    opacity: 0.12; /* Ajusta entre 0.08 e 0.15 para mais/menos visibilidade */
-    filter: blur(3px); /* Desfoca suavemente para focar a atenção nos dados */
-    pointer-events: none; /* Garante que não bloqueia cliques na interface */
-  }
-}
-
-/* Garantir que a área de conteúdo fica acima do background */
-nb-layout-column, .scrollable-container {
-  position: relative;
-  z-index: 1;
-}
-
-/* Deixar os nb-cards ligeiramente semitransparentes para o fundo transparecer com elegância */
-nb-card {
-  background-color: rgba(255, 255, 255, 0.92) !important; // Para Tema Claro (Light Theme)
-  backdrop-filter: blur(10px); // Efeito Glassmorphism moderno
 }
 
 // - - - - sidebar - - - - //

@@ -1,5 +1,6 @@
 @import '../@theme/styles/themes';
 
+/* O fundo da aplicação passou para o tema global (mgc-theme.scss). */
 @include nb-install-component() {
   ::ng-deep router-outlet + * {
     display: block;

@@ -1,5 +1,6 @@
 <div class="dashboard-wrapper">
 
+
   <!-- 1. PAINEL DE METRICAS (KPI CARDS) -->
   <div class="kpi-grid">
 
@@ -153,7 +154,7 @@
       <div class="kpi-info">
         <span class="kpi-title">Estações / Leituras</span>
         <h3 class="kpi-value">{{ estacoesNoFiltro }} <small>{{ estacoesNoFiltro === 1 ? 'estação' : 'estações' }}</small></h3>
-        <span class="kpi-subtext">{{ estacoesComDados }} com dados · {{ totalRegistos }} leituras</span>
+        <span class="kpi-subtext">{{ estacoesComDados }} com dados · {{ metersNoFiltro }} meters · {{ totalRegistos }} leituras</span>
       </div>
       <div class="kpi-icon">
         <nb-icon icon="people" pack="eva"></nb-icon>
@@ -242,6 +243,12 @@
 
   <!-- 2. PAINEL DE FILTROS -->
   <nb-card class="filter-panel">
+    <nb-card-header class="card-header-flex">
+      <div class="header-title">
+        <nb-icon icon="funnel-outline" pack="eva"></nb-icon>
+        <span>Filtros</span>
+      </div>
+    </nb-card-header>
     <nb-card-body>
 
       <!-- Linha principal: Categoria | Estação(ões) | Visão Temporal -->
@@ -263,7 +270,17 @@
         </div>
 
         <div class="filter-control">
-          <label class="label">Estação(ões)</label>
+          <div class="label-row">
+            <label class="label">Estação(ões)</label>
+            <button
+              type="button"
+              class="meter-link"
+              *ngIf="estacoesMultiMeter.length > 0 && viewMode !== 'ENTRADA_VS_SAIDA'"
+              (click)="abrirPainelMeters()">
+              <nb-icon icon="options-2-outline" pack="eva"></nb-icon>
+              Meters ({{ estacoesMultiMeter.length }})
+            </button>
+          </div>
           <nb-select
             placeholder="Selecione a(s) Estação(ões)"
             multiple
@@ -272,8 +289,8 @@
             (ngModelChange)="onClienteSelecionadoChange($event)"
             fullWidth>
             <nb-option value="ALL">🏢 Todas as Estações</nb-option>
-            <nb-option *ngFor="let c of listaClientesFiltradaPorCategoria; trackBy: trackByClientId" [value]="c.id">
-              {{ c.firstName }}
+            <nb-option *ngFor="let e of listaEstacoesFiltrada; trackBy: trackByKey" [value]="e.key">
+              {{ e.nome }}<ng-container *ngIf="e.meters.length > 1"> · {{ e.meters.length }} meters</ng-container>
             </nb-option>
           </nb-select>
         </div>
@@ -596,6 +613,41 @@
     Clica numa Estação na lista, no donut ou na barra para veres a evolução detalhada apenas dessa Estação. "Outras" agrupa as restantes estações.
   </p>
 
+  <!-- 3.1 DETALHE POR METER (estações com 2+ meters) -->
+  <nb-card class="meters-card" *ngIf="modoKpi === 'NORMAL' && gruposMeters.length > 0" [nbSpinner]="spinnerVisible" nbSpinnerStatus="primary">
+    <nb-card-header class="card-header-flex">
+      <div class="header-title">
+        <nb-icon icon="options-2-outline" pack="eva" status="primary"></nb-icon>
+        <span>Detalhe por Meter</span>
+      </div>
+      <div class="header-actions">
+        <button nbButton size="tiny" status="basic" appearance="outline" (click)="abrirPainelMeters()">Escolher meters</button>
+      </div>
+    </nb-card-header>
+    <nb-card-body>
+      <div class="meters-group" *ngFor="let g of gruposMeters; trackBy: trackByEstacao">
+        <div class="meters-group-head">
+          <strong>{{ g.estacao }}</strong>
+          <span>Total: {{ g.totalM3 | number:'1.2-2' }} m³ · {{ g.totalGJ | number:'1.2-2' }} GJ</span>
+        </div>
+        <div class="meters-row meters-row-head">
+          <span>Meter</span><span>Volume (m³)</span><span>Energia (GJ)</span><span>% da estação</span><span>Dias c/ dados</span><span>Última leitura</span>
+        </div>
+        <div class="meters-row" *ngFor="let m of g.meters; trackBy: trackByLabel">
+          <span class="meters-cell-name">{{ m.label }} <em class="meters-tag" *ngIf="m.semLeituras">Sem leituras</em></span>
+          <span>{{ m.volumeM3 | number:'1.2-2' }}</span>
+          <span>{{ m.gj | number:'1.2-2' }}</span>
+          <span class="meters-cell-bar">
+            <span class="meters-bar-bg"><span class="meters-bar-fill" [style.width.%]="m.percent"></span></span>
+            {{ m.percent | number:'1.1-1' }}%
+          </span>
+          <span>{{ m.dias }}</span>
+          <span>{{ m.ultima || '—' }}</span>
+        </div>
+      </div>
+    </nb-card-body>
+  </nb-card>
+
   <!-- 4. EVOLUÇÃO TEMPORAL (LINHA DO TEMPO) -->
   <div class="charts-row-split">
 
@@ -680,3 +732,55 @@
   </div>
 
 </div>
+
+<!-- PAINEL FLUTUANTE DOS METERS (abre ao selecionar uma estação com 2+ meters, ex.: PRS1) -->
+<aside class="meter-float" *ngIf="painelMeters && estacoesMultiMeter.length > 0" role="dialog" aria-label="Meters da estação">
+  <header class="meter-float-header">
+    <div class="meter-float-title">
+      <nb-icon icon="options-2-outline" pack="eva"></nb-icon>
+      <div>
+        <strong>Meters</strong>
+        <small>Mesma estação, contadores diferentes</small>
+      </div>
+    </div>
+    <button type="button" class="meter-float-close" (click)="fecharPainelMeters()" aria-label="Fechar painel">
+      <nb-icon icon="close-outline" pack="eva"></nb-icon>
+    </button>
+  </header>
+
+  <div class="meter-float-body">
+    <div class="meter-mode" role="group" aria-label="Modo de visualização">
+      <button type="button" [class.active]="modoMeters === 'SOMADOS'" (click)="definirModoMeters('SOMADOS')">Somados</button>
+      <button type="button" [class.active]="modoMeters === 'SEPARADOS'" (click)="definirModoMeters('SEPARADOS')">Separados</button>
+    </div>
+    <p class="meter-hint" *ngIf="modoKpi !== 'NORMAL'">Nas comparações os meters de cada estação são sempre somados.</p>
+
+    <div class="meter-station" *ngFor="let est of estacoesMultiMeter; trackBy: trackByKey">
+      <div class="meter-station-head">
+        <strong>{{ est.nome }}</strong>
+        <button type="button" class="meter-all" [disabled]="todosMetersAtivos(est)" (click)="todosMeters(est)">Todos</button>
+      </div>
+
+      <div class="meter-chips">
+        <button
+          type="button"
+          class="meter-chip"
+          *ngFor="let m of est.meters; trackBy: trackByMeter"
+          [class.active]="meterAtivo(est, m.clientId)"
+          [title]="'Clique para incluir/excluir. Duplo clique: ver só ' + m.label"
+          (click)="alternarMeter(est, m.clientId)"
+          (dblclick)="apenasMeter(est, m.clientId)">
+          <span class="meter-dot"></span>{{ m.label }}
+        </button>
+      </div>
+
+      <ng-container *ngIf="grupoMeters(est.nome) as g">
+        <div class="meter-line" *ngFor="let l of g.meters; trackBy: trackByLabel">
+          <span>{{ l.label }}</span>
+          <span>{{ l.volumeM3 | number:'1.2-2' }} m³</span>
+          <span class="meter-line-pct">{{ l.percent | number:'1.0-0' }}%</span>
+        </div>
+      </ng-container>
+    </div>
+  </div>
+</aside>

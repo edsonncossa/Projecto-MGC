@@ -4,16 +4,16 @@ import { Component } from '@angular/core';
   selector: 'ngx-footer',
   styleUrls: ['./footer.component.scss'],
   template: `
-    <span class="created-by">
-      Created with ♥ by <b><a href="https://akveo.page.link/8V2f" target="_blank">Akveo</a></b> 2019
+    <span class="created-by">© {{ year }} MGC · Todos os direitos reservados</span>
+    <span class="secure">
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <rect x="5" y="10" width="14" height="10" rx="2.5" />
+        <path d="M8 10V8a4 4 0 018 0v2" />
+      </svg>
+      Ligação segura e encriptada
     </span>
-    <div class="socials">
-      <a href="#" target="_blank" class="ion ion-social-github"></a>
-      <a href="#" target="_blank" class="ion ion-social-facebook"></a>
-      <a href="#" target="_blank" class="ion ion-social-twitter"></a>
-      <a href="#" target="_blank" class="ion ion-social-linkedin"></a>
-    </div>
   `,
 })
 export class FooterComponent {
+  year = new Date().getFullYear();
 }

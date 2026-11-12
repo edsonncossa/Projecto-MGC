@@ -36,22 +36,23 @@
           <label>
             Latitude
             <input type="text"
-                   inputmode="decimal"
-                   placeholder="-25,965300"
+                   placeholder="-25,965300 ou 25°57'55&quot;S"
                    autocomplete="off"
                    [value]="coordLat"
                    (input)="coordLat = $any($event.target).value"
-                   (paste)="aoColar($event)"
+                   (paste)="aoColar($event, 'lat')"
+                   (blur)="aoSairCampo('lat')"
                    (keydown.enter)="mostrarCoordenadas()">
           </label>
           <label>
             Longitude
             <input type="text"
-                   inputmode="decimal"
-                   placeholder="32,589200"
+                   placeholder="32,589200 ou 32°29'24.52&quot;E"
                    autocomplete="off"
                    [value]="coordLng"
                    (input)="coordLng = $any($event.target).value"
+                   (paste)="aoColar($event, 'lng')"
+                   (blur)="aoSairCampo('lng')"
                    (keydown.enter)="mostrarCoordenadas()">
           </label>
         </div>
@@ -66,7 +67,10 @@
             Usar para {{ selecionada?.firstName }}
           </button>
         </div>
-        <p class="dica">Pode colar "latitude, longitude" no primeiro campo.</p>
+        <p class="dica">
+          Escreva ou cole em graus/minutos/segundos (ex.: 32°29'24.52"E): é convertido
+          para decimal automaticamente. Também pode colar "latitude, longitude" no primeiro campo.
+        </p>
       </section>
 
       <ul class="lista">

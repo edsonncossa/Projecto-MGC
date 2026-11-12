@@ -20,6 +20,17 @@ const COR_PESQUISA = '#7b3fe4';
 /** Zoom mínimo ao mostrar umas coordenadas (nível de rua/edifício). */
 const ZOOM_COORDENADAS = 18;
 
+/** Um valor de coordenada: decimal ou graus/minutos/segundos, com hemisfério opcional. */
+const VALOR_COORD =
+  `(?:[NSEWLO]\\s*)?[+-]?\\d+(?:[.,]\\d+)?` +
+  `(?:\\s*[°º˚\\uFFFD]\\s*(?:\\d+\\s*['′’]\\s*(?:\\d+(?:[.,]\\d+)?\\s*(?:["″”]|'')\\s*)?)?)?` +
+  `(?:\\s*[NSEWLO])?`;
+
+/** Dois valores seguidos (latitude e longitude), separados por vírgula, ponto e vírgula ou espaço. */
+const PAR_COORD = new RegExp(`^\\s*(${VALOR_COORD})\\s*[;,\\s]\\s*(${VALOR_COORD})\\s*$`, 'i');
+
+type Eixo = 'lat' | 'lng';
+
 interface AlteracaoAnterior {
   estacao: StationLocation;
   latitude: number;
@@ -292,26 +303,114 @@ export class GmapsComponent implements OnInit {
 
   // ===================== Pesquisa por coordenadas =====================
 
-  /** Aceita "-25,9653" ou "-25.9653". Devolve NaN se não for um número válido. */
-  private lerNumero(texto: string): number {
-    const limpo = (texto ?? '').trim().replace(/\s+/g, '').replace(',', '.');
-    if (!/^[+-]?\d+(\.\d+)?$/.test(limpo)) return NaN;
-    return Number(limpo);
+  /**
+   * Converte uma coordenada em graus decimais. Aceita:
+   *  - decimal: "-25,9653" ou "-25.9653"
+   *  - graus/minutos/segundos: `32°29'24.52"E`, `25°57'55,1"S`, `S 25° 57' 55"`, `25 57 55 S`
+   *  - hemisfério N/S/E/W (ou L/O em português); S, W e O tornam o valor negativo.
+   * Devolve NaN se o texto não for válido ou se o hemisfério não corresponder ao eixo.
+   */
+  private lerNumero(texto: string, eixo: Eixo): number {
+    let t = (texto ?? '')
+      .trim()
+      .toUpperCase()
+      .replace(/[º˚]/g, '°')
+      .replace(/[′’‘`´]/g, "'")
+      .replace(/[″”“]/g, '"')
+      .replace(/''/g, '"');
+    if (!t) return NaN;
+
+    // Hemisfério (letra no início ou no fim)
+    let negativo = false;
+    const hem = t.match(/^([NSEWLO])(?=[\s\d+-])|([NSEWLO])$/);
+    if (hem) {
+      const letra = hem[1] ?? hem[2];
+      const eixoDaLetra: Eixo = 'NS'.includes(letra) ? 'lat' : 'lng';
+      if (eixoDaLetra !== eixo) return NaN;
+      negativo = 'SWO'.includes(letra);
+      t = t.replace(/^([NSEWLO])|([NSEWLO])$/, '').trim();
+    }
+
+    // Sinal
+    if (t.startsWith('-')) {
+      negativo = true;
+      t = t.slice(1).trim();
+    } else if (t.startsWith('+')) {
+      t = t.slice(1).trim();
+    }
+
+    // Números do texto: [graus] [minutos] [segundos]. Qualquer símbolo entre eles
+    // (°, º, ', ", espaço ou um carácter corrompido como �) serve de separador.
+    const NUMERO = /\d+(?:[.,]\d+)?/g;
+    const numeros = t.match(NUMERO);
+    if (!numeros || numeros.length > 3) return NaN;
+    // Não pode sobrar texto que não seja separador (letras, outros sinais, etc.)
+    if (/[A-Z0-9+\-]/.test(t.replace(NUMERO, ''))) return NaN;
+    // Só o último número pode ter casas decimais (ex.: 25°57'55,1")
+    if (numeros.slice(0, -1).some(n => /[.,]/.test(n))) return NaN;
+
+    const [graus, minutos = 0, segundos = 0] = numeros.map(n => Number(n.replace(',', '.')));
+    if (minutos >= 60 || segundos >= 60) return NaN;
+
+    let valor = graus + minutos / 60 + segundos / 3600;
+    valor = Number(valor.toFixed(6));
+    return negativo ? -valor : valor;
   }
 
-  /** Se colar "-25.9653, 32.5892" no campo da latitude, separa os dois valores. */
-  aoColar(ev: ClipboardEvent): void {
+  /** Decimal com 6 casas e vírgula, no mesmo formato dos exemplos dos campos. */
+  private paraTextoDecimal(n: number): string {
+    return n.toFixed(6).replace('.', ',');
+  }
+
+  /**
+   * Converte automaticamente o texto de um campo para decimal.
+   * Se o texto não for válido, deixa-o como está (o erro aparece ao mostrar no mapa).
+   */
+  private normalizarCampo(eixo: Eixo): void {
+    const texto = eixo === 'lat' ? this.coordLat : this.coordLng;
+    if (!texto.trim()) return;
+
+    const valor = this.lerNumero(texto, eixo);
+    if (Number.isNaN(valor)) return;
+
+    const decimal = this.paraTextoDecimal(valor);
+    if (eixo === 'lat') this.coordLat = decimal;
+    else this.coordLng = decimal;
+  }
+
+  /** Ao sair de um campo, converte para decimal o que foi escrito. */
+  aoSairCampo(eixo: Eixo): void {
+    this.normalizarCampo(eixo);
+  }
+
+  /**
+   * Ao colar:
+   *  - "latitude, longitude" (decimal ou graus/minutos/segundos) no campo da latitude
+   *    preenche os dois campos já em decimal e mostra no mapa;
+   *  - um único valor (ex.: 32°29'24.52"E) é convertido para decimal no próprio campo.
+   */
+  aoColar(ev: ClipboardEvent, eixo: Eixo): void {
     const texto = ev.clipboardData?.getData('text') ?? '';
-    const partes =
-      texto.match(/^\s*([+-]?\d+(?:[.,]\d+)?)\s*[;\s]\s*([+-]?\d+(?:[.,]\d+)?)\s*$/) ||
-      texto.match(/^\s*([+-]?\d+(?:\.\d+)?)\s*,\s*([+-]?\d+(?:\.\d+)?)\s*$/);
-    if (!partes) return;
+
+    if (eixo === 'lat') {
+      const par = texto.match(PAR_COORD);
+      if (par) {
+        ev.preventDefault();
+        this.coordLat = par[1];
+        this.coordLng = par[2];
+        this.mostrarCoordenadas();
+        return;
+      }
+    }
+
+    const valor = this.lerNumero(texto, eixo);
+    if (Number.isNaN(valor)) return; // deixa colar normalmente
 
     ev.preventDefault();
-    this.coordLat = partes[1];
-    this.coordLng = partes[2];
+    const decimal = this.paraTextoDecimal(valor);
+    if (eixo === 'lat') this.coordLat = decimal;
+    else this.coordLng = decimal;
     this.erroCoordenadas = null;
-    this.mostrarCoordenadas();
   }
 
   mostrarCoordenadas(): void {
@@ -323,11 +422,13 @@ export class GmapsComponent implements OnInit {
       return;
     }
 
-    const lat = this.lerNumero(this.coordLat);
-    const lng = this.lerNumero(this.coordLng);
+    const lat = this.lerNumero(this.coordLat, 'lat');
+    const lng = this.lerNumero(this.coordLng, 'lng');
 
     if (Number.isNaN(lat) || Number.isNaN(lng)) {
-      this.erroCoordenadas = 'Use apenas números decimais, por exemplo -25,965300.';
+      this.erroCoordenadas =
+        'Formato inválido. Use decimais (-25,965300) ou graus/minutos/segundos (25°57\'55,1"S). ' +
+        'A latitude usa N/S e a longitude usa E/W (ou L/O).';
       return;
     }
     if (lat < -90 || lat > 90) {
@@ -339,11 +440,15 @@ export class GmapsComponent implements OnInit {
       return;
     }
 
+    // Mostra nos campos o valor já convertido para decimal
+    this.coordLat = this.paraTextoDecimal(lat);
+    this.coordLng = this.paraTextoDecimal(lng);
+
     const ponto = L.latLng(lat, lng);
 
     if (!LIMITES_MOCAMBIQUE.contains(ponto)) {
       this.avisoCoordenadas = LIMITES_MOCAMBIQUE.contains(L.latLng(-lat, lng))
-        ? 'Em Moçambique a latitude é negativa (hemisfério sul). Faltará o sinal "-"?'
+        ? 'Em Moçambique a latitude é negativa (hemisfério sul). Faltará o sinal "-" ou a letra S?'
         : 'Atenção: estas coordenadas ficam fora de Moçambique.';
     }
 

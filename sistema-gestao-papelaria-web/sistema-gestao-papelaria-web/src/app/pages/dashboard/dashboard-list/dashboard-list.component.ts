@@ -19,7 +19,25 @@ type ModoKpi = 'NORMAL' | 'COMPARACAO' | 'ENTRADA_SAIDA';
 /** Intervalo em hora LOCAL (inicio 00:00:00, fim 23:59:59). */
 interface Periodo { inicio: Date; fim: Date; }
 
-/** Consumo (delta) de um registo já calculado. */
+/** Um meter (contador) físico. Cada meter é um "cliente" no backend. */
+interface MeterInfo { clientId: number; label: string; }
+
+/** Estação lógica: agrupa os meters que lhe pertencem (ex.: PRS1 = "PRS1 (M1)" + "PRS1 (M2)"). */
+interface Estacao { key: string; nome: string; meters: MeterInfo[]; }
+
+type ModoMeters = 'SOMADOS' | 'SEPARADOS';
+
+interface LinhaMeter {
+  label: string; volumeM3: number; gj: number; percent: number;
+  dias: number; ultima: string | null; semLeituras: boolean;
+}
+interface GrupoMeters { estacao: string; totalM3: number; totalGJ: number; meters: LinhaMeter[]; }
+interface DetalheBase {
+  estacao: string;
+  meters: { label: string; volumeM3: number; volumeMes: number[]; dias: number; ultima: Date | null }[];
+}
+
+/** Consumo (delta) de um registo já calculado. `clientName` é o nome da ESTAÇÃO (meters somados). */
 interface DeltaRegisto { clientId: number; clientName: string; data: Date; delta: number; }
 
 interface ResultadoDeltas {
@@ -30,6 +48,7 @@ interface ResultadoDeltas {
   /** Dias (yyyy-MM-dd) com pelo menos uma leitura, por estação. */
   diasComDados: Map<number, Set<string>>;
   nomes: Map<number, string>;
+  ultimaPorCliente: Map<number, Date>;
   ultimaLeitura: Date | null;
   energyContent: number | null;
 }
@@ -79,7 +98,8 @@ export class DashboardListComponent implements OnInit, OnDestroy {
   areaChartDataM3: any[] = [{ name: 'Consumo Real (m³)', series: [] }];
   areaChartDataGJ: any[] = [{ name: 'Energia Real (GJ)', series: [] }];
 
-  selectedClientIds: (number | string)[] = ['ALL'];
+  /** Chaves das ESTAÇÕES selecionadas (ou 'ALL'). Os meters de cada estação são tratados à parte. */
+  selectedClientIds: string[] = ['ALL'];
   viewMode: ViewMode | null = null;
   selectedMonth2: number | null = null;
   selectedYear2: number | null = null;
@@ -105,7 +125,7 @@ export class DashboardListComponent implements OnInit, OnDestroy {
   estacoesComDados = 0;
   selectedCategories: string[] = ['ALL'];
 
-  colorSchemeDonut: any = { domain: ['#00d68f', '#3366ff', '#ffaa00', '#32dbf0', '#ff3d71'] };
+  colorSchemeDonut: any = { domain: ['#3b7dd8', '#f59e0b', '#10b981', '#6366f1', '#38bdf8'] };
   /** Donut/barras: as 5 cores + cinzento para a fatia "Outras". */
   colorSchemeTop: any = { domain: [...this.colorSchemeDonut.domain, '#94a3b8'] };
   /** Esquema usado nos gráficos de linha (estável: só muda quando muda o nº de séries). */
@@ -114,8 +134,23 @@ export class DashboardListComponent implements OnInit, OnDestroy {
   topConsumersData: { name: string; value: number; percent?: number }[] = [];
   topConsumersDataGJ: { name: string; value: number }[] = [];
   listaClientes: Client[] = [];
-  /** Lista já filtrada por categoria (propriedade, não getter, para manter referência estável). */
-  listaClientesFiltradaPorCategoria: Client[] = [];
+  /** Todas as estações (meters agrupados) e as que passam o filtro de categoria. */
+  listaEstacoes: Estacao[] = [];
+  listaEstacoesFiltrada: Estacao[] = [];
+  /** Estações com 2+ meters que estão no filtro atual (alimenta o painel flutuante). */
+  estacoesMultiMeter: Estacao[] = [];
+  private estacaoPorKey = new Map<string, Estacao>();
+  private estacaoPorClientId = new Map<number, Estacao>();
+
+  // ----- Meters -----
+  modoMeters: ModoMeters = 'SOMADOS';
+  painelMeters = false;
+  /** Meters ativos por estação. Sem entrada = todos ativos. */
+  private metersSelecionados = new Map<string, Set<number>>();
+  gruposMeters: GrupoMeters[] = [];
+  private detalheBase: DetalheBase[] = [];
+  metersNoFiltro = 0;
+
   private clientesPorId = new Map<number, Client>();
   private clientesCarregados = false;
 
@@ -195,7 +230,9 @@ export class DashboardListComponent implements OnInit, OnDestroy {
 
   trackByName = (_: number, item: { name: string }) => item.name;
   trackByLabel = (_: number, item: { label: string }) => item.label;
-  trackByClientId = (_: number, c: Client) => c.id;
+  trackByKey = (_: number, e: { key: string }) => e.key;
+  trackByMeter = (_: number, m: MeterInfo) => m.clientId;
+  trackByEstacao = (_: number, g: { estacao: string }) => g.estacao;
   trackByIndex = (i: number) => i;
 
   /** Arrow function: mantém o `this` e uma referência estável para o ngx-charts. */
@@ -224,6 +261,7 @@ export class DashboardListComponent implements OnInit, OnDestroy {
             .map(c => [Number(c.id), c] as [number, Client])
         );
         this.totalClientes = this.listaClientes.length;
+        this.construirEstacoes();
         this.clientesCarregados = true;
         this.atualizarListaClientesFiltrada();
 
@@ -257,6 +295,8 @@ export class DashboardListComponent implements OnInit, OnDestroy {
       // Categoria e Estação não se aplicam a esta visão (usa sempre todas as estações).
       this.selectedCategories = ['ALL'];
       this.selectedClientIds = ['ALL'];
+      this.metersSelecionados.clear();
+      this.painelMeters = false;
       this.atualizarListaClientesFiltrada();
       this.selectedYear = new Date().getFullYear();
       this.recarregarDadosDashboard();
@@ -274,21 +314,139 @@ export class DashboardListComponent implements OnInit, OnDestroy {
 
     // Remove estações escolhidas que já não pertencem às categorias selecionadas.
     if (!this.isAllClientsSelected) {
-      const validos = new Set(this.listaClientesFiltradaPorCategoria.map(c => Number(c.id)));
-      const restantes = this.selectedClientIds.filter(id => validos.has(Number(id)));
+      const validos = new Set(this.listaEstacoesFiltrada.map(e => e.key));
+      const restantes = this.selectedClientIds.filter(k => validos.has(k));
       this.selectedClientIds = restantes.length > 0 ? restantes : ['ALL'];
     }
+    this.atualizarEstacoesMultiMeter();
 
     this.recarregarDadosDashboard();
     this.cdr.markForCheck();
   }
 
-  onClienteSelecionadoChange(idsSelecionados: (number | string)[] | number | string | null): void {
-    const ids: (number | string)[] = Array.isArray(idsSelecionados)
-      ? idsSelecionados
-      : (idsSelecionados !== null && idsSelecionados !== undefined ? [idsSelecionados] : []);
+  onClienteSelecionadoChange(selecionadas: (number | string)[] | number | string | null): void {
+    const chaves: string[] = (Array.isArray(selecionadas)
+      ? selecionadas
+      : (selecionadas !== null && selecionadas !== undefined ? [selecionadas] : [])
+    ).map(String);
 
-    this.selectedClientIds = this.normalizarSelecaoComAll(ids, this.selectedClientIds);
+    const antes = new Set(this.selectedClientIds);
+    this.selectedClientIds = this.normalizarSelecaoComAll(chaves, this.selectedClientIds) as string[];
+    this.atualizarEstacoesMultiMeter();
+
+    // Ao escolher uma estação com 2+ meters (ex.: PRS1), abre o painel flutuante dos meters.
+    const abrirPainel = this.selectedClientIds.some(k =>
+      k !== 'ALL' && !antes.has(k) && (this.estacaoPorKey.get(k)?.meters.length ?? 0) > 1);
+    if (abrirPainel) this.painelMeters = true;
+
+    this.recarregarDadosDashboard();
+    this.cdr.markForCheck();
+  }
+
+  // ===================== ESTAÇÕES E METERS =====================
+
+  /** "PRS1 (M1)", "PRS1(M2)", "PRS1 - M1", "PRS1 M1" → { base: 'PRS1', meter: 'M1' }. "HPCMS3" não é meter. */
+  private parseNomeCliente(nome: string | undefined | null): { base: string; meter: string | null } {
+    const n = (nome ?? '').trim();
+    const m = /^(.+?)\s*(?:\(\s*(M\d+)\s*\)|[-–]\s*(M\d+)|\s(M\d+))$/i.exec(n);
+    if (!m) return { base: n, meter: null };
+    return { base: m[1].trim(), meter: (m[2] || m[3] || m[4]).toUpperCase() };
+  }
+
+  /** Agrupa os clientes (meters) por estação. É a ÚNICA fonte de verdade para "o que é uma estação". */
+  private construirEstacoes(): void {
+    const porKey = new Map<string, Estacao>();
+    const porClientId = new Map<number, Estacao>();
+    const natural = (a: string, b: string) => a.localeCompare(b, 'pt', { numeric: true });
+
+    for (const c of this.listaClientes) {
+      const id = Number(c.id);
+      if (isNaN(id)) continue;
+      const { base, meter } = this.parseNomeCliente(c.firstName);
+      const key = base.toUpperCase();
+      let est = porKey.get(key);
+      if (!est) {
+        est = { key, nome: base, meters: [] };
+        porKey.set(key, est);
+      }
+      est.meters.push({ clientId: id, label: meter ?? 'Único' });
+      porClientId.set(id, est);
+    }
+
+    porKey.forEach(e => e.meters.sort((a, b) => natural(a.label, b.label)));
+    this.estacaoPorKey = porKey;
+    this.estacaoPorClientId = porClientId;
+    this.listaEstacoes = Array.from(porKey.values()).sort((a, b) => natural(a.nome, b.nome));
+  }
+
+  private estacoesSelecionadas(): Estacao[] {
+    if (this.isAllClientsSelected) return this.listaEstacoesFiltrada;
+    const chaves = new Set(this.selectedClientIds);
+    return this.listaEstacoesFiltrada.filter(e => chaves.has(e.key));
+  }
+
+  private clientIdsAtivos(est: Estacao): number[] {
+    return est.meters.filter(m => this.meterAtivo(est, m.clientId)).map(m => m.clientId);
+  }
+
+  private atualizarEstacoesMultiMeter(): void {
+    this.estacoesMultiMeter = this.estacoesSelecionadas().filter(e => e.meters.length > 1);
+    if (this.estacoesMultiMeter.length === 0) this.painelMeters = false;
+  }
+
+  private rotuloCliente(clientId: number): string {
+    const est = this.estacaoPorClientId.get(clientId);
+    if (!est) return this.clientesPorId.get(clientId)?.firstName || `Cliente #${clientId}`;
+    if (this.modoMeters === 'SEPARADOS' && est.meters.length > 1) {
+      const meter = est.meters.find(m => m.clientId === clientId)?.label ?? '';
+      return `${est.nome} · ${meter}`;
+    }
+    return est.nome;
+  }
+
+  /** O painel flutuante só existe para estações com 2+ meters. */
+  meterAtivo(est: Estacao, clientId: number): boolean {
+    const s = this.metersSelecionados.get(est.key);
+    return !s || s.has(clientId);
+  }
+
+  todosMetersAtivos(est: Estacao): boolean {
+    return !this.metersSelecionados.has(est.key);
+  }
+
+  alternarMeter(est: Estacao, clientId: number): void {
+    const s = new Set(this.metersSelecionados.get(est.key) ?? est.meters.map(m => m.clientId));
+    if (s.has(clientId)) s.delete(clientId); else s.add(clientId);
+    if (s.size === 0) return; // tem de haver pelo menos um meter ativo
+    if (s.size === est.meters.length) this.metersSelecionados.delete(est.key);
+    else this.metersSelecionados.set(est.key, s);
+    this.aoAlterarMeters();
+  }
+
+  apenasMeter(est: Estacao, clientId: number): void {
+    this.metersSelecionados.set(est.key, new Set([clientId]));
+    this.aoAlterarMeters();
+  }
+
+  todosMeters(est: Estacao): void {
+    this.metersSelecionados.delete(est.key);
+    this.aoAlterarMeters();
+  }
+
+  definirModoMeters(modo: ModoMeters): void {
+    if (this.modoMeters === modo) return;
+    this.modoMeters = modo;
+    this.aoAlterarMeters();
+  }
+
+  abrirPainelMeters(): void { this.painelMeters = true; this.cdr.markForCheck(); }
+  fecharPainelMeters(): void { this.painelMeters = false; this.cdr.markForCheck(); }
+
+  grupoMeters(estacaoNome: string): GrupoMeters | undefined {
+    return this.gruposMeters.find(g => g.estacao === estacaoNome);
+  }
+
+  private aoAlterarMeters(): void {
     this.recarregarDadosDashboard();
     this.cdr.markForCheck();
   }
@@ -317,6 +475,9 @@ export class DashboardListComponent implements OnInit, OnDestroy {
     this.endDate = null;
     this.monthlyEnergyContent = new Array(12).fill(null);
     this.energyContentMjSm3 = null;
+    this.metersSelecionados.clear();
+    this.modoMeters = 'SOMADOS';
+    this.painelMeters = false;
     this.atualizarListaClientesFiltrada();
     this.resetMetrics();
     this.cdr.markForCheck();
@@ -336,13 +497,6 @@ export class DashboardListComponent implements OnInit, OnDestroy {
     if (temAllAgora && tinhaAllAntes && novos.length > 1) return novos.filter(v => v !== 'ALL');
     if (temAllAgora && novos.length === 1) return ['ALL'];
     return novos;
-  }
-
-  private getClientIdsSelecionados(): number[] {
-    return this.selectedClientIds
-      .filter(id => id !== 'ALL')
-      .map(id => Number(id))
-      .filter(id => !isNaN(id));
   }
 
   onEnergyContentChange(): void {
@@ -393,11 +547,13 @@ export class DashboardListComponent implements OnInit, OnDestroy {
     const nome: string | null = evento?.name ?? evento?.label ?? null;
     if (!nome || nome.startsWith('Outras (')) return;
 
-    const cliente = this.listaClientes.find(c => c.firstName === nome);
-    if (!cliente || cliente.id === undefined || cliente.id === null) return;
+    // No modo "Separados" o nome vem como "PRS1 · M1": a estação é a parte antes do " · ".
+    const base = nome.split(' · ')[0].trim();
+    const estacao = this.estacaoPorKey.get(base.toUpperCase());
+    if (!estacao) return;
 
-    this.onClienteSelecionadoChange([cliente.id]);
-    this.toastrService.info(`A filtrar por ${cliente.firstName}`, 'Cliente selecionado', { duration: 2500 });
+    this.onClienteSelecionadoChange([estacao.key]);
+    this.toastrService.info(`A filtrar por ${estacao.nome}`, 'Estação selecionada', { duration: 2500 });
   }
 
   // ===================== CATEGORIAS =====================
@@ -411,26 +567,15 @@ export class DashboardListComponent implements OnInit, OnDestroy {
   }
 
   private atualizarListaClientesFiltrada(): void {
-    if (!this.listaClientes) {
-      this.listaClientesFiltradaPorCategoria = [];
-      return;
-    }
-
     if (this.incluiEntradas && this.incluiSaidas) {
-      this.listaClientesFiltradaPorCategoria = this.listaClientes;
-      return;
+      this.listaEstacoesFiltrada = this.listaEstacoes;
+    } else {
+      this.listaEstacoesFiltrada = this.listaEstacoes.filter(e => {
+        const eEntrada = this.isNomeEntrada(e.nome);
+        return (this.incluiEntradas && eEntrada) || (this.incluiSaidas && !eEntrada);
+      });
     }
-
-    this.listaClientesFiltradaPorCategoria = this.listaClientes.filter(c => {
-      const eEntrada = this.isClienteEntrada(c);
-      return (this.incluiEntradas && eEntrada) || (this.incluiSaidas && !eEntrada);
-    });
-  }
-
-  getClientIdsPorCategoria(): number[] {
-    return this.listaClientesFiltradaPorCategoria
-      .map(c => Number(c.id))
-      .filter(id => !isNaN(id));
+    this.atualizarEstacoesMultiMeter();
   }
 
   isFiltrosCompletos(): boolean {
@@ -550,15 +695,22 @@ export class DashboardListComponent implements OnInit, OnDestroy {
    * param → o que se envia ao backend (undefined = sem filtro de estação).
    */
   private resolverEstacoes(): { ids: number[]; param: number[] | undefined } {
-    const porCategoria = this.getClientIdsPorCategoria();
+    // Estação → meters ativos → ids de cliente (é o que o backend conhece).
+    const ids: number[] = [];
+    this.estacoesSelecionadas().forEach(e => ids.push(...this.clientIdsAtivos(e)));
 
-    if (this.isAllClientsSelected) {
-      const todasCategorias = this.incluiEntradas && this.incluiSaidas;
-      return { ids: porCategoria, param: todasCategorias ? undefined : porCategoria };
+    const todasCategorias = this.incluiEntradas && this.incluiSaidas;
+    const semFiltro = this.isAllClientsSelected && todasCategorias && this.metersSelecionados.size === 0;
+    return { ids, param: semFiltro ? undefined : ids };
+  }
+
+  private contarEstacoes(clientIds: Iterable<number>): number {
+    const keys = new Set<string>();
+    for (const id of clientIds) {
+      const k = this.estacaoPorClientId.get(id)?.key;
+      if (k) keys.add(k);
     }
-
-    const selecionadas = this.getClientIdsSelecionados().filter(id => porCategoria.includes(id));
-    return { ids: selecionadas, param: selecionadas };
+    return keys.size;
   }
 
   private buscar(periodo: Periodo, clientIds: number[] | undefined): Observable<any> {
@@ -731,6 +883,7 @@ export class DashboardListComponent implements OnInit, OnDestroy {
       leiturasAnomalas: 0,
       diasComDados: new Map(),
       nomes: new Map(),
+      ultimaPorCliente: new Map(),
       ultimaLeitura: null,
       energyContent: null
     };
@@ -767,8 +920,14 @@ export class DashboardListComponent implements OnInit, OnDestroy {
       const dentro = data.getTime() >= periodo.inicio.getTime() && data.getTime() <= periodo.fim.getTime();
       if (!dentro) continue;
 
-      const nome = c.client?.firstName || this.clientesPorId.get(clientId)?.firstName || `Cliente #${clientId}`;
+      // Nome da ESTAÇÃO: os meters (M1, M2...) da mesma estação somam-se automaticamente.
+      const nome = this.estacaoPorClientId.get(clientId)?.nome
+        || this.parseNomeCliente(c.client?.firstName || this.clientesPorId.get(clientId)?.firstName).base
+        || `Cliente #${clientId}`;
       resultado.nomes.set(clientId, nome);
+
+      const ultCli = resultado.ultimaPorCliente.get(clientId);
+      if (!ultCli || data.getTime() > ultCli.getTime()) resultado.ultimaPorCliente.set(clientId, data);
 
       let dias = resultado.diasComDados.get(clientId);
       if (!dias) {
@@ -823,20 +982,22 @@ export class DashboardListComponent implements OnInit, OnDestroy {
     this.leiturasAnomalas = r.leiturasAnomalas;
     this.aplicarEnergyContentDosDados(r.energyContent);
 
+    // Rótulo = estação (meters somados) ou "PRS1 · M1" quando o modo "Separados" está ativo.
     const totalPorEstacao = new Map<string, number>();
-    r.diasComDados.forEach((_, id) => totalPorEstacao.set(r.nomes.get(id) ?? `Cliente #${id}`, 0));
+    r.diasComDados.forEach((_, id) => totalPorEstacao.set(this.rotuloCliente(id), 0));
 
     const serieDaEstacao = new Map<string, Map<string, number>>();
     let total = 0;
 
     for (const d of r.deltas) {
+      const rotulo = this.rotuloCliente(d.clientId);
       total += d.delta;
-      totalPorEstacao.set(d.clientName, (totalPorEstacao.get(d.clientName) ?? 0) + d.delta);
+      totalPorEstacao.set(rotulo, (totalPorEstacao.get(rotulo) ?? 0) + d.delta);
 
-      let mapa = serieDaEstacao.get(d.clientName);
+      let mapa = serieDaEstacao.get(rotulo);
       if (!mapa) {
         mapa = new Map<string, number>();
-        serieDaEstacao.set(d.clientName, mapa);
+        serieDaEstacao.set(rotulo, mapa);
       }
       const chave = this.chaveOrdenavel(d.data, granul);
       mapa.set(chave, (mapa.get(chave) ?? 0) + d.delta);
@@ -847,9 +1008,11 @@ export class DashboardListComponent implements OnInit, OnDestroy {
 
     this.totalVolumeConsumido = this.arred(total, 2);
     this.totalRegistos = r.deltas.length;
-    this.estacoesNoFiltro = idsEsperados.length;
-    this.estacoesComDados = r.diasComDados.size;
+    this.estacoesNoFiltro = this.contarEstacoes(idsEsperados);
+    this.estacoesComDados = this.contarEstacoes(r.diasComDados.keys());
+    this.metersNoFiltro = idsEsperados.length;
     this.mediaConsumoDiarioM3 = total / this.diasPeriodo;
+    this.construirDetalheMeters(r, idsEsperados);
 
     this.volumePorCliente = Array.from(totalPorEstacao.entries())
       .map(([name, value]) => ({ name, value: this.arred(value, 2) }))
@@ -909,8 +1072,9 @@ export class DashboardListComponent implements OnInit, OnDestroy {
     this.totalVolumeConsumido = this.arred(vol2, 2);
     this.mediaConsumoDiarioM3 = vol2 / dias2;
     this.totalRegistos = r1.deltas.length + r2.deltas.length;
-    this.estacoesNoFiltro = idsEsperados.length;
-    this.estacoesComDados = new Set([...Array.from(r1.diasComDados.keys()), ...Array.from(r2.diasComDados.keys())]).size;
+    this.estacoesNoFiltro = this.contarEstacoes(idsEsperados);
+    this.estacoesComDados = this.contarEstacoes([...Array.from(r1.diasComDados.keys()), ...Array.from(r2.diasComDados.keys())]);
+    this.metersNoFiltro = idsEsperados.length;
 
     const temDadosPeriodo1 = r1.deltas.length > 0;
     this.totalVolumeAnterior = temDadosPeriodo1 ? this.arred(vol1, 2) : null;
@@ -984,8 +1148,9 @@ export class DashboardListComponent implements OnInit, OnDestroy {
     this.totalVolumeConsumido = this.arred(totalSaida, 2);
     this.mediaConsumoDiarioM3 = totalSaida / this.diasPeriodo;
     this.totalRegistos = r.deltas.length;
-    this.estacoesNoFiltro = this.listaClientes.length;
-    this.estacoesComDados = r.diasComDados.size;
+    this.estacoesNoFiltro = this.listaEstacoes.length;
+    this.estacoesComDados = this.contarEstacoes(r.diasComDados.keys());
+    this.metersNoFiltro = this.listaClientes.length;
 
     const { pico, minimo } = this.encontrarPicoEMinimo([{ nome: '', pontos: seriesSaidas }]);
     this.picoConsumo = pico;
@@ -1004,6 +1169,67 @@ export class DashboardListComponent implements OnInit, OnDestroy {
   private calcularErroPercentual(entrada: number, consumo: number): number | null {
     if (!(consumo > 0)) return null;
     return ((entrada - consumo) / consumo) * 100;
+  }
+
+  // ===================== DETALHE POR METER =====================
+
+  /** Regista, para cada estação com 2+ meters, o volume (total e por mês) de cada meter. */
+  private construirDetalheMeters(r: ResultadoDeltas, idsEsperados: number[]): void {
+    const porCliente = new Map<number, { volumeM3: number; volumeMes: number[] }>();
+    for (const d of r.deltas) {
+      let acc = porCliente.get(d.clientId);
+      if (!acc) {
+        acc = { volumeM3: 0, volumeMes: new Array(12).fill(0) };
+        porCliente.set(d.clientId, acc);
+      }
+      acc.volumeM3 += d.delta;
+      acc.volumeMes[d.data.getMonth()] += d.delta;
+    }
+
+    const esperados = new Set(idsEsperados);
+    const base: DetalheBase[] = [];
+    this.estacoesSelecionadas().filter(e => e.meters.length > 1).forEach(est => {
+      const meters = est.meters
+        .filter(m => esperados.has(m.clientId))
+        .map(m => ({
+          label: m.label,
+          volumeM3: porCliente.get(m.clientId)?.volumeM3 ?? 0,
+          volumeMes: porCliente.get(m.clientId)?.volumeMes ?? new Array(12).fill(0),
+          dias: r.diasComDados.get(m.clientId)?.size ?? 0,
+          ultima: r.ultimaPorCliente.get(m.clientId) ?? null
+        }));
+      if (meters.length > 0) base.push({ estacao: est.nome, meters });
+    });
+    this.detalheBase = base;
+  }
+
+  private energyContentDoMes(mes: number): number {
+    if (this.viewMode === 'YEARLY' && Number(this.monthlyEnergyContent[mes]) > 0) {
+      return Number(this.monthlyEnergyContent[mes]);
+    }
+    return Number(this.energyContentMjSm3);
+  }
+
+  /** Recalculado sempre que o Energy Content muda (por isso separado de construirDetalheMeters). */
+  private atualizarDetalheMeters(): void {
+    this.gruposMeters = this.detalheBase.map(g => {
+      const totalM3 = g.meters.reduce((acc, m) => acc + m.volumeM3, 0);
+      const linhas: LinhaMeter[] = g.meters.map(m => ({
+        label: m.label,
+        volumeM3: this.arred(m.volumeM3, 2),
+        gj: this.arred(m.volumeMes.reduce((acc, v, i) => acc + this.m3ParaGJ(v, this.energyContentDoMes(i)), 0), 2),
+        percent: totalM3 > 0 ? (m.volumeM3 / totalM3) * 100 : 0,
+        dias: m.dias,
+        ultima: m.ultima ? this.formatarDataBr(m.ultima) : null,
+        semLeituras: m.dias === 0
+      }));
+      return {
+        estacao: g.estacao,
+        totalM3: this.arred(totalM3, 2),
+        totalGJ: this.arred(linhas.reduce((acc, l) => acc + l.gj, 0), 2),
+        meters: linhas
+      };
+    });
   }
 
   private construirSeriesM3(
@@ -1172,6 +1398,7 @@ export class DashboardListComponent implements OnInit, OnDestroy {
       this.aplicarResumoEnergia(totaisGJ);
     }
 
+    this.atualizarDetalheMeters();
     this.recalcularKpisDerivados();
     this.atualizarApoioGraficos();
   }
@@ -1278,6 +1505,9 @@ export class DashboardListComponent implements OnInit, OnDestroy {
     this.totalRegistos = 0;
     this.estacoesNoFiltro = 0;
     this.estacoesComDados = 0;
+    this.metersNoFiltro = 0;
+    this.detalheBase = [];
+    this.gruposMeters = [];
     this.areaChartDataM3 = [{ name: 'Consumo Real (m³)', series: [] }];
     this.areaChartDataGJ = [{ name: 'Energia Real (GJ)', series: [] }];
     this.topConsumersData = [];
@@ -1344,7 +1574,9 @@ export class DashboardListComponent implements OnInit, OnDestroy {
   }
 
   get mostrarRanking(): boolean {
-    return this.modoKpi === 'NORMAL' && (this.isAllClientsSelected || this.isMultiplosClientesSelecionados);
+    const separaMeters = this.modoMeters === 'SEPARADOS' && this.estacoesMultiMeter.length > 0;
+    return this.modoKpi === 'NORMAL' &&
+      (this.isAllClientsSelected || this.isMultiplosClientesSelecionados || separaMeters);
   }
 
   get intervaloInvalido(): boolean {
@@ -1372,6 +1604,8 @@ export class DashboardListComponent implements OnInit, OnDestroy {
     return this.viewMode !== null ||
            !this.selectedCategories.includes('ALL') ||
            !this.isAllClientsSelected ||
+           this.metersSelecionados.size > 0 ||
+           this.modoMeters !== 'SOMADOS' ||
            Number(this.energyContentMjSm3) > 0 ||
            this.monthlyEnergyContent.some(v => Number(v) > 0);
   }
@@ -1396,8 +1630,13 @@ export class DashboardListComponent implements OnInit, OnDestroy {
     if (this.isAllClientsSelected) return 'Todos os Clientes';
 
     const nomes = this.selectedClientIds
-      .map(id => this.clientesPorId.get(Number(id))?.firstName)
-      .filter((nome): nome is string => !!nome);
+      .map(k => this.estacaoPorKey.get(k))
+      .filter((e): e is Estacao => !!e)
+      .map(e => {
+        // Se só alguns meters estão ativos, mostra-os: "PRS1 (M1)".
+        const ativos = e.meters.filter(m => this.meterAtivo(e, m.clientId));
+        return ativos.length < e.meters.length ? `${e.nome} (${ativos.map(m => m.label).join(' + ')})` : e.nome;
+      });
 
     if (nomes.length === 0) return '';
     if (nomes.length <= 3) return nomes.join(', ');
