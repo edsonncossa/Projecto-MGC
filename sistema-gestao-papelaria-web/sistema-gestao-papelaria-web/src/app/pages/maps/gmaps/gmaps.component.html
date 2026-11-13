@@ -166,6 +166,81 @@
         <span><i class="cor provisoria"></i>Provisória</span>
         <span *ngIf="procurado"><i class="cor pesquisa"></i>Coordenadas</span>
       </div>
+
+      <!-- ===== Aba flutuante: detalhes da estação ===== -->
+      <aside class="detalhes" *ngIf="selecionada && detalhesAbertos" role="dialog"
+             [attr.aria-label]="'Detalhes de ' + selecionada.firstName">
+        <header class="detalhes-topo">
+          <div class="detalhes-titulo">
+            <strong>{{ selecionada.firstName }}</strong>
+            <div class="etiquetas">
+              <span class="etiqueta" [class.ok]="temLocalizacao(selecionada)">
+                {{ temLocalizacao(selecionada) ? 'Localizada' : 'Sem localização' }}
+              </span>
+              <span class="etiqueta neutra" *ngIf="categoria(selecionada) as cat">{{ cat }}</span>
+            </div>
+          </div>
+          <button type="button" class="fechar" (click)="fecharDetalhes()" aria-label="Fechar detalhes">×</button>
+        </header>
+
+        <div class="detalhes-corpo">
+
+          <section>
+            <h5>Localização</h5>
+
+            <ng-container *ngIf="temLocalizacao(selecionada); else semPosicao">
+              <dl>
+                <dt>Zona</dt>
+                <dd>
+                  <ng-container *ngIf="zonaCarregando">A procurar…</ng-container>
+                  <ng-container *ngIf="!zonaCarregando && zona">
+                    <strong>{{ zona.zona }}</strong>
+                  </ng-container>
+                  <span class="suave" *ngIf="!zonaCarregando && !zona && zonaErro">Não foi possível obter a zona.</span>
+                </dd>
+
+                <ng-container *ngIf="zona">
+                  <dt *ngIf="zona.cidade && zona.cidade !== zona.zona">Cidade / Distrito</dt>
+                  <dd *ngIf="zona.cidade && zona.cidade !== zona.zona">{{ zona.cidade }}</dd>
+
+                  <dt *ngIf="zona.provincia">Província</dt>
+                  <dd *ngIf="zona.provincia">{{ zona.provincia }}</dd>
+
+                  <dt *ngIf="zona.endereco">Endereço aproximado</dt>
+                  <dd class="pequeno" *ngIf="zona.endereco">{{ zona.endereco }}</dd>
+                </ng-container>
+
+                <dt>Latitude</dt>
+                <dd class="num">{{ formatarCoordenada(selecionada.latitude) }}</dd>
+                <dt>Longitude</dt>
+                <dd class="num">{{ formatarCoordenada(selecionada.longitude) }}</dd>
+              </dl>
+            </ng-container>
+            <ng-template #semPosicao>
+              <p class="suave">Esta estação ainda não tem posição guardada. Clique no mapa para a marcar.</p>
+            </ng-template>
+          </section>
+
+          <section>
+            <h5>Outros detalhes</h5>
+            <dl>
+              <dt>Código</dt>
+              <dd class="num">{{ selecionada.id }}</dd>
+              <ng-container *ngFor="let d of detalhesExtra">
+                <dt>{{ d.rotulo }}</dt>
+                <dd>{{ d.valor }}</dd>
+              </ng-container>
+            </dl>
+          </section>
+        </div>
+
+        <footer class="detalhes-rodape">
+          <button type="button" *ngIf="temLocalizacao(selecionada)" (click)="centrar(selecionada)">Centrar</button>
+          <button type="button" *ngIf="temLocalizacao(selecionada)" (click)="copiarCoordenadas()">Copiar coordenadas</button>
+          <a *ngIf="urlGoogleMaps as url" [href]="url" target="_blank" rel="noopener noreferrer">Google Maps</a>
+          <button type="button" class="principal" (click)="verNoDashboard()">Ver no dashboard</button>
+        </footer>
+      </aside>
     </div>
 
   </nb-card-body>

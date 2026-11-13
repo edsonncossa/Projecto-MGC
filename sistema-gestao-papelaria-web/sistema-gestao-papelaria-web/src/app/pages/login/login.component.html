@@ -46,7 +46,7 @@
 
       <form [formGroup]="form" (ngSubmit)="login()">
         <!-- Username -->
-        <div class="field" [class.invalid]="(submitted && form.get('username')?.invalid) || authError">
+        <div class="field" [class.invalid]="(submitted && form.get('username')?.invalid) || credentialsError">
           <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
             <circle cx="12" cy="8" r="4" />
             <path d="M4 20c0-3.6 3.6-6 8-6s8 2.4 8 6" />
@@ -57,7 +57,7 @@
         <small class="hint" *ngIf="submitted && form.get('username')?.invalid" role="alert">Insira o username</small>
 
         <!-- Password -->
-        <div class="field" [class.invalid]="(submitted && form.get('password')?.invalid) || authError">
+        <div class="field" [class.invalid]="(submitted && form.get('password')?.invalid) || credentialsError">
           <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
             <rect x="4" y="10" width="16" height="10" rx="3" />
             <path d="M8 10V7a4 4 0 018 0v3" />
@@ -79,9 +79,10 @@
             </svg>
           </button>
         </div>
-        <small class="hint" *ngIf="submitted && form.get('password')?.invalid; else authHint" role="alert">Insira a password</small>
-        <ng-template #authHint>
-          <small class="hint" *ngIf="authError" role="alert">{{ authError }}</small>
+        <small class="hint" *ngIf="submitted && form.get('password')?.invalid; else serverHint" role="alert">Insira a password</small>
+        <ng-template #serverHint>
+          <!-- Qualquer resposta de erro do servidor aparece aqui, junto aos campos -->
+          <small class="hint" *ngIf="serverError" role="alert">{{ serverError }}</small>
         </ng-template>
 
         <button type="submit" class="submit" [disabled]="loading" [class.loading]="loading">

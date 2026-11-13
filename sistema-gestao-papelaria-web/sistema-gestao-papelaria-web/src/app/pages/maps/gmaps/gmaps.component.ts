@@ -1,5 +1,9 @@
-import { Component, HostListener, NgZone, OnInit } from '@angular/core';
+import { Component, HostListener, NgZone, OnDestroy, OnInit } from '@angular/core';
+import { HttpBackend, HttpClient, HttpParams } from '@angular/common/http';
+import { ActivatedRoute, Router } from '@angular/router';
 import { NbToastrService } from '@nebular/theme';
+import { Subscription } from 'rxjs';
+import { finalize } from 'rxjs/operators';
 import { LeafletControlLayersConfig } from '@asymmetrik/ngx-leaflet';
 import * as L from 'leaflet';
 
@@ -20,6 +24,26 @@ const COR_PESQUISA = '#7b3fe4';
 /** Zoom mínimo ao mostrar umas coordenadas (nível de rua/edifício). */
 const ZOOM_COORDENADAS = 18;
 
+/** Rota do dashboard (ajuste se estiver montado noutro caminho). */
+const ROTA_DASHBOARD = '/pages/dashboard';
+
+/** Serviço público de geocodificação inversa (OpenStreetMap). Coordenadas → nome da zona. */
+const URL_GEOCODIFICACAO = 'https://nominatim.openstreetmap.org/reverse';
+
+/**
+ * Campos opcionais do cliente/estação mostrados em "Outros detalhes" (só aparecem se vierem preenchidos).
+ * Ajuste as chaves aos campos reais do seu modelo StationLocation / Client.
+ */
+const CAMPOS_EXTRA: { rotulo: string; chaves: string[]; data?: boolean }[] = [
+  { rotulo: 'Tipo', chaves: ['type', 'clientType', 'category'] },
+  { rotulo: 'Estado', chaves: ['status', 'state', 'active'] },
+  { rotulo: 'Morada', chaves: ['address', 'morada', 'endereco'] },
+  { rotulo: 'Contacto', chaves: ['phone', 'phoneNumber', 'mobile', 'telephone', 'contact'] },
+  { rotulo: 'E-mail', chaves: ['email'] },
+  { rotulo: 'Descrição', chaves: ['description', 'descricao', 'notes', 'observacoes'] },
+  { rotulo: 'Criada em', chaves: ['createdAt', 'createdDate', 'creationDate'], data: true },
+];
+
 /** Um valor de coordenada: decimal ou graus/minutos/segundos, com hemisfério opcional. */
 const VALOR_COORD =
   `(?:[NSEWLO]\\s*)?[+-]?\\d+(?:[.,]\\d+)?` +
@@ -30,6 +54,15 @@ const VALOR_COORD =
 const PAR_COORD = new RegExp(`^\\s*(${VALOR_COORD})\\s*[;,\\s]\\s*(${VALOR_COORD})\\s*$`, 'i');
 
 type Eixo = 'lat' | 'lng';
+
+interface ZonaInfo {
+  zona: string;
+  cidade: string | null;
+  provincia: string | null;
+  endereco: string | null;
+}
+
+interface DetalheExtra { rotulo: string; valor: string; }
 
 interface AlteracaoAnterior {
   estacao: StationLocation;
@@ -42,7 +75,7 @@ interface AlteracaoAnterior {
   styleUrls: ['./gmaps.component.scss'],
   templateUrl: './gmaps.component.html',
 })
-export class GmapsComponent implements OnInit {
+export class GmapsComponent implements OnInit, OnDestroy {
   private readonly ruas = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
     maxZoom: 19,
     attribution: '&copy; Contribuidores do OpenStreetMap',
@@ -88,7 +121,20 @@ export class GmapsComponent implements OnInit {
   avisoCoordenadas: string | null = null;
   procurado: L.LatLng | null = null;
 
+  // Painel flutuante de detalhes
+  detalhesAbertos = false;
+  zona: ZonaInfo | null = null;
+  zonaCarregando = false;
+  zonaErro = false;
+
   private map?: L.Map;
+  /** HttpClient sem interceptors: o pedido ao Nominatim nunca leva o token da aplicação. */
+  private readonly httpExterno: HttpClient;
+  private zonaSub?: Subscription;
+  private readonly cacheZonas = new Map<string, ZonaInfo>();
+  /** Pedido vindo do dashboard ("Ver no mapa"), aplicado quando as estações estiverem carregadas. */
+  private pedidoDashboard: { ids: number[]; nome: string | null } | null = null;
+  private focoPendente: StationLocation[] | null = null;
   private marcadores = new Map<number, L.Marker>();
   private rascunho?: L.Marker;
   private marcadorPesquisa?: L.Marker;
@@ -97,10 +143,32 @@ export class GmapsComponent implements OnInit {
     private clientService: ClientService,
     private toastr: NbToastrService,
     private zone: NgZone,
-  ) {}
+    private route: ActivatedRoute,
+    private router: Router,
+    httpBackend: HttpBackend,
+  ) {
+    this.httpExterno = new HttpClient(httpBackend);
+  }
 
   ngOnInit(): void {
+    this.route.queryParamMap.subscribe(params => {
+      const ids = (params.get('ids') ?? '')
+        .split(',')
+        .map(v => Number(v))
+        .filter(n => Number.isFinite(n) && n > 0);
+      const nome = params.get('nome');
+      if (ids.length === 0 && !nome) return;
+
+      this.pedidoDashboard = { ids, nome };
+      // Se as estações já estão carregadas (o componente foi reaproveitado), aplica já.
+      if (!this.carregando) this.aplicarPedidoDashboard();
+    });
+
     this.carregarEstacoes();
+  }
+
+  ngOnDestroy(): void {
+    this.zonaSub?.unsubscribe();
   }
 
   // ===================== Estado derivado =====================
@@ -158,7 +226,13 @@ export class GmapsComponent implements OnInit {
     this.map = map;
     L.control.zoom({ position: 'bottomright' }).addTo(map);
     L.control.scale({ imperial: false, position: 'bottomleft' }).addTo(map);
-    this.ajustarVista();
+
+    if (this.focoPendente) {
+      this.enquadrar(this.focoPendente);
+      this.focoPendente = null;
+    } else {
+      this.ajustarVista();
+    }
   }
 
   onMapClick(ev: L.LeafletMouseEvent): void {
@@ -195,7 +269,8 @@ export class GmapsComponent implements OnInit {
         this.estacoes = lista;
         this.carregando = false;
         this.desenharMarcadores();
-        this.ajustarVista();
+        if (this.pedidoDashboard) this.aplicarPedidoDashboard();
+        else this.ajustarVista();
       },
       error: () => {
         this.carregando = false;
@@ -211,11 +286,198 @@ export class GmapsComponent implements OnInit {
     this.limparRascunho();
     this.reposicionar = false;
     this.selecionada = this.selecionada === e ? null : e;
+    this.detalhesAbertos = !!this.selecionada;
     this.atualizarIcones();
+    this.carregarZona(this.selecionada);
 
     if (this.selecionada && this.temLocalizacao(this.selecionada)) {
       this.centrar(this.selecionada);
     }
+  }
+
+  /** Clique num marcador: abre os detalhes; clicar de novo na estação já aberta desseleciona-a. */
+  private aoClicarMarcador(e: StationLocation): void {
+    if (this.selecionada === e && !this.detalhesAbertos) {
+      this.detalhesAbertos = true;
+      return;
+    }
+    this.selecionar(e);
+  }
+
+  fecharDetalhes(): void {
+    this.detalhesAbertos = false;
+  }
+
+  // ===================== Vindo do dashboard =====================
+
+  /** "PRS1 (M1)", "PRS1 - M2", "PRS1 M1" → "PRS1" (mesma regra do dashboard). */
+  private chaveEstacao(nome: string | null | undefined): string {
+    const n = (nome ?? '').trim();
+    const m = /^(.+?)\s*(?:\(\s*(M\d+)\s*\)|[-–]\s*(M\d+)|\s(M\d+))$/i.exec(n);
+    return (m ? m[1].trim() : n).toUpperCase();
+  }
+
+  private aplicarPedidoDashboard(): void {
+    const pedido = this.pedidoDashboard;
+    this.pedidoDashboard = null;
+    if (!pedido) return;
+
+    const chave = pedido.nome ? this.chaveEstacao(pedido.nome) : null;
+    const encontradas = this.estacoes.filter(e =>
+      pedido.ids.includes(Number(e.id)) || (!!chave && this.chaveEstacao(e.firstName) === chave));
+
+    if (encontradas.length === 0) {
+      this.toastr.warning(`Não encontrei "${pedido.nome ?? 'a estação'}" no mapa.`, 'Estação não encontrada');
+      return;
+    }
+
+    // Garante que a estação não fica escondida por um filtro da lista.
+    this.filtroTexto = '';
+    this.apenasSemLocalizacao = false;
+
+    const localizadas = encontradas.filter(e => this.temLocalizacao(e));
+    const alvo = localizadas[0] ?? encontradas[0];
+
+    this.limparRascunho();
+    this.reposicionar = false;
+    this.selecionada = alvo;
+    this.detalhesAbertos = true;
+    this.atualizarIcones();
+    this.carregarZona(alvo);
+
+    if (localizadas.length === 0) {
+      this.toastr.info(
+        `${alvo.firstName} ainda não tem localização. Clique no mapa para a marcar.`,
+        'Sem localização',
+      );
+      return;
+    }
+
+    if (this.map) this.enquadrar(localizadas);
+    else this.focoPendente = localizadas; // o mapa ainda não está pronto
+  }
+
+  /** Uma estação: aproxima-se dela. Várias (meters em sítios diferentes): mostra todas. */
+  private enquadrar(lista: StationLocation[]): void {
+    if (!this.map) return;
+    const pontos = lista
+      .filter(e => this.temLocalizacao(e))
+      .map(e => L.latLng(e.latitude as number, e.longitude as number));
+    if (pontos.length === 0) return;
+
+    if (pontos.length === 1) {
+      this.map.flyTo(pontos[0], Math.max(this.map.getZoom(), 16), { duration: 0.8 });
+    } else {
+      this.map.fitBounds(L.latLngBounds(pontos).pad(0.3), { maxZoom: 17 });
+    }
+  }
+
+  // ===================== Detalhes da estação =====================
+
+  /** Entradas: PRS1 e HPCMS3 (mesma regra do dashboard). */
+  categoria(e: StationLocation | null): 'Entrada' | 'Saída' | null {
+    if (!e?.firstName) return null;
+    return /^(PRS1|HPCMS3)(?![A-Z0-9])/.test(e.firstName.trim().toUpperCase()) ? 'Entrada' : 'Saída';
+  }
+
+  /** Campos opcionais que a estação tenha preenchidos (ver CAMPOS_EXTRA). */
+  get detalhesExtra(): DetalheExtra[] {
+    if (!this.selecionada) return [];
+    const origem = this.selecionada as unknown as Record<string, unknown>;
+    const lista: DetalheExtra[] = [];
+
+    for (const campo of CAMPOS_EXTRA) {
+      const chave = campo.chaves.find(k => origem[k] !== undefined && origem[k] !== null && origem[k] !== '');
+      if (!chave) continue;
+      const bruto = origem[chave];
+      if (typeof bruto === 'object') continue;
+
+      let valor: string;
+      if (typeof bruto === 'boolean') {
+        valor = bruto ? 'Sim' : 'Não';
+      } else if (campo.data && !isNaN(new Date(String(bruto)).getTime())) {
+        valor = new Date(String(bruto)).toLocaleString('pt-PT');
+      } else {
+        valor = String(bruto);
+      }
+      lista.push({ rotulo: campo.rotulo, valor });
+    }
+    return lista;
+  }
+
+  get urlGoogleMaps(): string | null {
+    const e = this.selecionada;
+    return e && this.temLocalizacao(e)
+      ? `https://www.google.com/maps?q=${e.latitude},${e.longitude}`
+      : null;
+  }
+
+  copiarCoordenadas(): void {
+    const e = this.selecionada;
+    if (!e || !this.temLocalizacao(e)) return;
+    const texto = `${this.formatarCoordenada(e.latitude)}, ${this.formatarCoordenada(e.longitude)}`;
+    navigator.clipboard?.writeText(texto).then(
+      () => this.toastr.success('Coordenadas copiadas.', 'Copiado'),
+      () => this.toastr.warning('Não foi possível copiar.', 'Copiar'),
+    );
+  }
+
+  verNoDashboard(): void {
+    if (!this.selecionada) return;
+    this.router.navigate([ROTA_DASHBOARD], {
+      queryParams: { estacao: this.chaveEstacao(this.selecionada.firstName) },
+    });
+  }
+
+  /** Nome da zona a partir das coordenadas (geocodificação inversa), com cache e cancelamento. */
+  private carregarZona(e: StationLocation | null): void {
+    this.zonaSub?.unsubscribe();
+    this.zona = null;
+    this.zonaErro = false;
+    this.zonaCarregando = false;
+    if (!e || !this.temLocalizacao(e)) return;
+
+    const lat = e.latitude as number;
+    const lng = e.longitude as number;
+    const chave = `${lat.toFixed(5)},${lng.toFixed(5)}`;
+
+    const emCache = this.cacheZonas.get(chave);
+    if (emCache) {
+      this.zona = emCache;
+      return;
+    }
+
+    this.zonaCarregando = true;
+    const params = new HttpParams()
+      .set('format', 'jsonv2')
+      .set('lat', String(lat))
+      .set('lon', String(lng))
+      .set('zoom', '16')
+      .set('addressdetails', '1')
+      .set('accept-language', 'pt');
+
+    this.zonaSub = this.httpExterno.get<any>(URL_GEOCODIFICACAO, { params })
+      .pipe(finalize(() => (this.zonaCarregando = false)))
+      .subscribe({
+        next: (res) => {
+          const a = res?.address ?? {};
+          const zona = a.suburb || a.neighbourhood || a.quarter || a.city_district || a.residential
+            || a.hamlet || a.village || a.town || a.city || a.county || '';
+          if (!zona && !res?.display_name) {
+            this.zonaErro = true;
+            return;
+          }
+          const info: ZonaInfo = {
+            zona: zona || 'Zona não identificada',
+            cidade: a.city || a.town || a.municipality || a.county || null,
+            provincia: a.state || null,
+            endereco: res?.display_name ?? null,
+          };
+          this.cacheZonas.set(chave, info);
+          this.zona = info;
+        },
+        error: () => { this.zonaErro = true; },
+      });
   }
 
   centrar(e: StationLocation): void {
@@ -242,7 +504,11 @@ export class GmapsComponent implements OnInit {
 
   @HostListener('document:keydown.escape')
   aoPremirEscape(): void {
-    this.cancelar();
+    if (this.pendente || this.reposicionar) {
+      this.cancelar();
+    } else if (this.detalhesAbertos) {
+      this.detalhesAbertos = false;
+    }
   }
 
   /** Só aqui é que a posição vai para a base de dados. */
@@ -267,6 +533,7 @@ export class GmapsComponent implements OnInit {
         this.limparRascunho();
         this.reposicionar = false;
         this.desenharMarcadores();
+        if (this.selecionada === estacao) this.carregarZona(estacao);
         this.toastr.success(`Localização de ${estacao.firstName} guardada.`, 'Guardado');
       },
       error: () => {
@@ -292,6 +559,7 @@ export class GmapsComponent implements OnInit {
           this.aGuardar = false;
           this.desenharMarcadores();
           this.centrar(alteracao.estacao);
+          if (this.selecionada === alteracao.estacao) this.carregarZona(alteracao.estacao);
           this.toastr.success('Posição anterior reposta.', 'Alteração desfeita');
         },
         error: () => {
@@ -536,7 +804,7 @@ export class GmapsComponent implements OnInit {
         title: e.firstName,
       }).bindTooltip(e.firstName, { direction: 'top', offset: [0, -34] });
 
-      marker.on('click', () => this.zone.run(() => this.selecionar(e)));
+      marker.on('click', () => this.zone.run(() => this.aoClicarMarcador(e)));
       this.marcadores.set(e.id, marker);
     });
 
