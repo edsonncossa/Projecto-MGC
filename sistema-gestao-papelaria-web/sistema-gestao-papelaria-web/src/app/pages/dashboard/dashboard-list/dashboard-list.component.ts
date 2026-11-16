@@ -1,4 +1,5 @@
 import { Component, OnInit, OnDestroy, ChangeDetectorRef, ChangeDetectionStrategy } from '@angular/core';
+import { ActivatedRoute, ParamMap, Router } from '@angular/router';
 
 import { ClientService } from '@app/services/client.service';
 import { ConsumptionService } from '@app/services/consumption.service';
@@ -199,12 +200,18 @@ export class DashboardListComponent implements OnInit, OnDestroy {
   private energyChangeSubject = new Subject<void>();
   private energySubscription: Subscription;
 
+  /** Filtros pedidos pela URL (ex.: botão "Ver no dashboard" do mapa), aplicados quando as estações estiverem carregadas. */
+  private pedidoRota: ParamMap | null = null;
+  private rotaSubscription?: Subscription;
+
   constructor(
     private clientService: ClientService,
     private certificadoService: CertificadoService,
     private consumptionService: ConsumptionService,
     private cdr: ChangeDetectorRef,
     private toastrService: NbToastrService,
+    private route: ActivatedRoute,
+    private router: Router,
   ) {
     // Debounce de 300ms. NÃO usar distinctUntilChanged aqui: o Subject<void> emite sempre
     // "undefined" e só deixaria passar a primeira alteração.
@@ -218,10 +225,20 @@ export class DashboardListComponent implements OnInit, OnDestroy {
 
   ngOnInit(): void {
     this.resetMetrics();
+
+    // Ex.: /pages/dashboard?estacao=PRS1&cliente=12  (opcionais: visao=MONTHLY|YEARLY, mes=1..12, ano=2026)
+    this.rotaSubscription = this.route.queryParamMap.subscribe(params => {
+      if (!params.get('estacao') && !params.get('cliente')) return;
+      this.pedidoRota = params;
+      // Se as estações já estão carregadas (componente reaproveitado), aplica já.
+      if (this.clientesCarregados) this.aplicarFiltrosDaRota();
+    });
+
     this.carregarListaClientes();
   }
 
   ngOnDestroy(): void {
+    this.rotaSubscription?.unsubscribe();
     this.energySubscription?.unsubscribe();
     this.pedidoAtivo?.unsubscribe();
   }
@@ -265,8 +282,9 @@ export class DashboardListComponent implements OnInit, OnDestroy {
         this.clientesCarregados = true;
         this.atualizarListaClientesFiltrada();
 
-        // Se o utilizador já escolheu filtros enquanto a lista carregava, aplica-os agora.
-        if (this.isFiltrosCompletos()) this.recarregarDadosDashboard();
+        // Filtros vindos do mapa têm prioridade; senão, aplica os que o utilizador já escolheu.
+        if (this.pedidoRota) this.aplicarFiltrosDaRota();
+        else if (this.isFiltrosCompletos()) this.recarregarDadosDashboard();
         this.cdr.markForCheck();
       },
       error: (err) => {
@@ -275,6 +293,68 @@ export class DashboardListComponent implements OnInit, OnDestroy {
         this.cdr.markForCheck();
       }
     });
+  }
+
+  // ===================== FILTROS VINDOS DA URL (MAPA → DASHBOARD) =====================
+
+  /**
+   * Pré-preenche os filtros com a estação pedida e carrega os consumos.
+   * Por omissão mostra o mês corrente; `visao`, `mes` (1-12) e `ano` permitem escolher outro período.
+   */
+  private aplicarFiltrosDaRota(): void {
+    const params = this.pedidoRota;
+    this.pedidoRota = null;
+    if (!params) return;
+
+    // 1.º pelo nome da estação; se falhar, pelo id do cliente (meter).
+    const chave = (params.get('estacao') ?? '').trim().toUpperCase();
+    const idCliente = Number(params.get('cliente'));
+    const estacao = this.estacaoPorKey.get(chave)
+      ?? (Number.isFinite(idCliente) ? this.estacaoPorClientId.get(idCliente) : undefined);
+
+    if (!estacao) {
+      this.toastrService.warning(
+        `Não encontrei a estação "${params.get('estacao') ?? ''}" no dashboard.`, 'Estação não encontrada');
+      this.limparParametrosDaUrl();
+      return;
+    }
+
+    const hoje = new Date();
+    const visao = (params.get('visao') ?? 'MONTHLY').toUpperCase();
+    const mesPedido = Number(params.get('mes'));
+    const anoPedido = Number(params.get('ano'));
+    const ano = Number.isInteger(anoPedido) && this.anos.includes(anoPedido) ? anoPedido : hoje.getFullYear();
+    const mes = Number.isInteger(mesPedido) && mesPedido >= 1 && mesPedido <= 12 ? mesPedido - 1 : hoje.getMonth();
+
+    this.cancelarPedidoAtivo();
+    this.resetMetrics();
+
+    // Todas as categorias, para a estação (entrada ou saída) aparecer sempre na lista.
+    this.selectedCategories = ['ALL'];
+    this.atualizarListaClientesFiltrada();
+    this.selectedClientIds = [estacao.key];
+    this.metersSelecionados.clear();
+    this.modoMeters = 'SOMADOS';
+    this.painelMeters = false;
+    this.atualizarEstacoesMultiMeter();
+
+    this.viewMode = visao === 'YEARLY' ? 'YEARLY' : 'MONTHLY';
+    this.selectedYear = ano;
+    this.selectedMonth = this.viewMode === 'MONTHLY' ? mes : null;
+    this.selectedMonth2 = null;
+    this.selectedYear2 = null;
+    this.startDate = null;
+    this.endDate = null;
+    this.monthlyEnergyContent = new Array(12).fill(null);
+
+    this.recarregarDadosDashboard();
+    this.limparParametrosDaUrl();
+    this.cdr.markForCheck();
+  }
+
+  /** Tira os parâmetros da URL (sem nova entrada no histórico) para um refresh não repor filtros antigos. */
+  private limparParametrosDaUrl(): void {
+    this.router.navigate([], { relativeTo: this.route, queryParams: {}, replaceUrl: true });
   }
 
   // ===================== EVENTOS DE FILTROS =====================

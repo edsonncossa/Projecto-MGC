@@ -1,64 +1,85 @@
-<nb-card>
-  <nb-card-header class="d-flex justify-content-between align-items-center">
-    <div class="d-flex align-items-center gap-2">
-      <nb-icon icon="people-outline" pack="eva" status="primary"></nb-icon>
-      <span class="h6 mb-0">Gestão de Estações</span>
+<nb-card class="cartao">
+  <nb-card-header class="cabecalho">
+    <div class="titulo">
+      <span class="icone-titulo"><nb-icon icon="pin-outline" pack="eva"></nb-icon></span>
+      <div>
+        <h6>Gestão de Estações</h6>
+        <small class="resumo" *ngIf="!carregando">
+          {{ totalElements }} {{ totalElements === 1 ? 'estação' : 'estações' }}
+          <ng-container *ngIf="filterValue">para "{{ filterValue }}"</ng-container>
+        </small>
+        <small class="resumo" *ngIf="carregando">A carregar…</small>
+      </div>
     </div>
 
-    <!-- Ações e Pesquisa -->
-    <div class="d-flex align-items-center gap-3">
-      <div class="search-container">
-        <input 
-          nbInput 
-          type="text" 
-          placeholder="Pesquisar cliente..." 
-          (keyup)="applyFilter($event)"
-          fieldSize="medium"
-          fullWidth>
-      </div>
-
-       <!--   <button nbButton status="danger" (click)="abrirDialog()" class="d-flex align-items-center gap-2">
-        <nb-icon icon="person-add-outline" pack="eva"></nb-icon>
-        <span>Adicionar</span>
-      </button> -->
+    <!-- Pesquisa -->
+    <div class="pesquisa">
+      <nb-icon icon="search-outline" pack="eva" class="pesquisa-icone"></nb-icon>
+      <input type="search"
+             placeholder="Pesquisar estação"
+             aria-label="Pesquisar estação"
+             autocomplete="off"
+             [value]="textoPesquisa"
+             (input)="aoPesquisar($any($event.target).value)">
+      <button type="button" class="pesquisa-limpar" *ngIf="textoPesquisa"
+              (click)="limparPesquisa()" aria-label="Limpar pesquisa" title="Limpar pesquisa">×</button>
     </div>
   </nb-card-header>
 
-  <nb-card-body class="p-0">
+  <nb-card-body class="corpo">
+    <div class="barra-carga" *ngIf="carregando" role="progressbar" aria-label="A carregar estações"></div>
+
     <div class="table-responsive">
-      <mat-table [dataSource]="dataSource" matSort class="w-100">
-        
-        <!-- Nome / Nome da Empresa -->
+      <mat-table [dataSource]="dataSource" matSort class="tabela" [class.a-carregar]="carregando">
+
+        <!-- Estação -->
         <ng-container matColumnDef="firstName">
-          <mat-header-cell *matHeaderCellDef mat-sort-header>Nome da Estação</mat-header-cell>
+          <mat-header-cell *matHeaderCellDef mat-sort-header>Estação</mat-header-cell>
           <mat-cell *matCellDef="let client">
-            <strong>{{ client.firstName }}</strong>
+            <div class="estacao">
+              <span class="avatar" [class.entrada]="ehEntrada(client)">{{ inicial(client) }}</span>
+              <div class="estacao-info">
+                <strong>{{ client.firstName }}</strong>
+                <small *ngIf="client.id !== undefined && client.id !== null">Cód. {{ client.id }}</small>
+              </div>
+            </div>
           </mat-cell>
         </ng-container>
 
         <!-- Email -->
         <ng-container matColumnDef="email">
-          <mat-header-cell *matHeaderCellDef mat-sort-header>E-mail da Estação</mat-header-cell>
-          <mat-cell *matCellDef="let client">{{ client.email }}</mat-cell>
+          <mat-header-cell *matHeaderCellDef mat-sort-header>E-mail</mat-header-cell>
+          <mat-cell *matCellDef="let client">
+            <span class="texto" [class.suave]="!client.email">{{ client.email || '—' }}</span>
+          </mat-cell>
         </ng-container>
 
         <!-- Telefone -->
         <ng-container matColumnDef="phoneNumber">
-          <mat-header-cell *matHeaderCellDef mat-sort-header>Telefone da Estação</mat-header-cell>
-          <mat-cell *matCellDef="let client">{{ client.phoneNumber }}</mat-cell>
+          <mat-header-cell *matHeaderCellDef mat-sort-header>Telefone</mat-header-cell>
+          <mat-cell *matCellDef="let client">
+            <span class="texto num" [class.suave]="!client.phoneNumber">{{ client.phoneNumber || '—' }}</span>
+          </mat-cell>
         </ng-container>
 
         <!-- Endereço -->
         <ng-container matColumnDef="address">
-          <mat-header-cell *matHeaderCellDef mat-sort-header>Endereço da Estação</mat-header-cell>
-          <mat-cell *matCellDef="let client">{{ client.address }}</mat-cell>
+          <mat-header-cell *matHeaderCellDef mat-sort-header>Endereço</mat-header-cell>
+          <mat-cell *matCellDef="let client">
+            <span class="texto" [class.suave]="!client.address" [title]="client.address || ''">{{ client.address || '—' }}</span>
+          </mat-cell>
         </ng-container>
 
         <!-- Tipo -->
         <ng-container matColumnDef="type">
           <mat-header-cell *matHeaderCellDef mat-sort-header>Tipo</mat-header-cell>
           <mat-cell *matCellDef="let client">
-            <span class="type-badge">{{ getClientTypeLabel(client.type) }}</span>
+            <div class="etiquetas">
+              <span class="etiqueta" [class.entrada]="ehEntrada(client)">
+                {{ ehEntrada(client) ? 'Entrada' : 'Saída' }}
+              </span>
+              <span class="etiqueta neutra">{{ getClientTypeLabel(client.type) }}</span>
+            </div>
           </mat-cell>
         </ng-container>
 
@@ -66,42 +87,59 @@
         <ng-container matColumnDef="corrector">
           <mat-header-cell *matHeaderCellDef mat-sort-header>Corretor</mat-header-cell>
           <mat-cell *matCellDef="let client">
-            {{ client.corrector?.name || '-' }}
+            <span class="texto" [class.suave]="!client.corrector?.name">{{ client.corrector?.name || '—' }}</span>
           </mat-cell>
         </ng-container>
 
         <!-- Ações -->
         <ng-container matColumnDef="action">
-          <mat-header-cell *matHeaderCellDef class="text-center">Ação</mat-header-cell>
-          <mat-cell *matCellDef="let client" class="text-center">
-            <button nbButton ghost status="primary" size="small" (click)="editarCliente(client)" title="Editar">
-              <nb-icon icon="edit-2-outline" pack="eva"></nb-icon>
-            </button>
-            <button nbButton ghost status="danger" size="small" (click)="desativarCliente(client)" title="Desativar">
-              <nb-icon icon="trash-2-outline" pack="eva"></nb-icon>
-            </button>
+          <mat-header-cell *matHeaderCellDef class="col-acoes">Ações</mat-header-cell>
+          <mat-cell *matCellDef="let client" class="col-acoes">
+            <div class="acoes">
+              <button type="button" class="acao acao-mapa" (click)="verNoMapa(client)"
+                      title="Ver no mapa" [attr.aria-label]="'Ver ' + client.firstName + ' no mapa'">
+                <nb-icon icon="pin-outline" pack="eva"></nb-icon>
+              </button>
+              <button type="button" class="acao acao-dashboard" (click)="verNoDashboard(client)"
+                      title="Ver consumos no dashboard" [attr.aria-label]="'Ver consumos de ' + client.firstName">
+                <nb-icon icon="bar-chart-2-outline" pack="eva"></nb-icon>
+              </button>
+              <span class="separador"></span>
+              <button type="button" class="acao" (click)="editarCliente(client)"
+                      title="Editar" [attr.aria-label]="'Editar ' + client.firstName">
+                <nb-icon icon="edit-2-outline" pack="eva"></nb-icon>
+              </button>
+              <button type="button" class="acao acao-perigo" (click)="desativarCliente(client)"
+                      title="Desativar" [attr.aria-label]="'Desativar ' + client.firstName">
+                <nb-icon icon="trash-2-outline" pack="eva"></nb-icon>
+              </button>
+            </div>
           </mat-cell>
         </ng-container>
 
-        <!-- Header / Rows -->
         <mat-header-row *matHeaderRowDef="displayedColumns"></mat-header-row>
         <mat-row *matRowDef="let client; columns: displayedColumns"></mat-row>
 
-        <!-- Sem Dados -->
+        <!-- Sem dados -->
         <tr class="mat-row" *matNoDataRow>
-          <td class="mat-cell text-center p-4" colspan="7">
-            Não foram encontradas estações para o filtro "{{ filterValue }}".
+          <td class="vazio" [attr.colspan]="displayedColumns.length">
+            <ng-container *ngIf="!carregando">
+              <nb-icon icon="search-outline" pack="eva"></nb-icon>
+              <p *ngIf="filterValue">Nenhuma estação encontrada para "{{ filterValue }}".</p>
+              <p *ngIf="!filterValue">Ainda não há estações registadas.</p>
+              <button type="button" class="link" *ngIf="filterValue" (click)="limparPesquisa()">Limpar pesquisa</button>
+            </ng-container>
           </td>
         </tr>
       </mat-table>
     </div>
   </nb-card-body>
 
-  <nb-card-footer class="d-flex justify-content-end p-2">
-    <mat-paginator 
-      [length]="totalElements" 
-      [pageSize]="pageSize" 
-      [pageIndex]="pageIndex" 
+  <nb-card-footer class="rodape">
+    <mat-paginator
+      [length]="totalElements"
+      [pageSize]="pageSize"
+      [pageIndex]="pageIndex"
       [pageSizeOptions]="[5, 10, 20]"
       showFirstLastButtons>
     </mat-paginator>

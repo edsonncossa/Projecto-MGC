@@ -1,4 +1,7 @@
-import { AfterViewInit, Component, OnInit, ViewChild } from '@angular/core';
+import { AfterViewInit, Component, OnDestroy, OnInit, ViewChild } from '@angular/core';
+import { Router } from '@angular/router';
+import { Subject, Subscription } from 'rxjs';
+import { debounceTime } from 'rxjs/operators';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { MatSort, MatSortModule } from '@angular/material/sort';
@@ -21,6 +24,10 @@ import {
   NbInputModule 
 } from '@nebular/theme';
 
+/** Rotas de destino (ajuste se estiverem montadas noutro caminho). */
+const ROTA_MAPA = '/pages/maps/gmaps';
+const ROTA_DASHBOARD = '/pages/dashboard';
+
 @Component({
   selector: 'app-client-list',
   templateUrl: './client-list.component.html',
@@ -39,7 +46,7 @@ import {
     NbInputModule
   ]
 })
-export class ClientListComponent implements AfterViewInit, OnInit {
+export class ClientListComponent implements AfterViewInit, OnInit, OnDestroy {
 
   displayedColumns: string[] = [
     'firstName',
@@ -55,7 +62,13 @@ export class ClientListComponent implements AfterViewInit, OnInit {
   totalElements = 0;
   pageSize = 10;
   pageIndex = 0;
+  /** Texto como o utilizador o escreve (campo) e valor já normalizado enviado ao backend. */
+  textoPesquisa = '';
   filterValue = '';
+  carregando = false;
+
+  private pesquisa$ = new Subject<string>();
+  private subscricoes = new Subscription();
 
   clientTypeLabel = ClientTypeLabel;
   user: User | null = null;
@@ -67,12 +80,24 @@ export class ClientListComponent implements AfterViewInit, OnInit {
     private clientService: ClientService,
     private dialog: MatDialog,
     private snackbar: SnackbarService,
-    private auth: AuthService
+    private auth: AuthService,
+    private router: Router
   ) { }
 
   ngOnInit(): void {
     this.loadClients();
     this.user = this.auth.getUser();
+
+    // Espera 300 ms depois de parar de escrever: evita um pedido por tecla.
+    this.subscricoes.add(this.pesquisa$.pipe(debounceTime(300)).subscribe(valor => {
+      this.filterValue = valor.trim().toLowerCase();
+      this.pageIndex = 0;
+      this.loadClients();
+    }));
+  }
+
+  ngOnDestroy(): void {
+    this.subscricoes.unsubscribe();
   }
 
   ngAfterViewInit(): void {
@@ -90,16 +115,52 @@ export class ClientListComponent implements AfterViewInit, OnInit {
     }
   }
 
-  applyFilter(event: Event): void {
-    const value = (event.target as HTMLInputElement).value;
-    this.filterValue = value.trim().toLowerCase();
+  aoPesquisar(valor: string): void {
+    this.textoPesquisa = valor;
+    this.pesquisa$.next(valor);
+  }
+
+  limparPesquisa(): void {
+    this.textoPesquisa = '';
+    this.filterValue = '';
     this.pageIndex = 0;
     this.loadClients();
+  }
+
+  // ===================== Ligação ao mapa e ao dashboard =====================
+
+  /** "PRS1 (M1)", "PRS1 - M2", "PRS1 M1" → "PRS1" (mesma regra do mapa e do dashboard). */
+  private chaveEstacao(nome: string | null | undefined): string {
+    const n = (nome ?? '').trim();
+    const m = /^(.+?)\s*(?:\(\s*(M\d+)\s*\)|[-–]\s*(M\d+)|\s(M\d+))$/i.exec(n);
+    return (m ? m[1].trim() : n).toUpperCase();
+  }
+
+  /** Estações de entrada: PRS1 e HPCMS3 (mesma regra do dashboard). */
+  ehEntrada(client: Client): boolean {
+    return /^(PRS1|HPCMS3)(?![A-Z0-9])/.test((client.firstName ?? '').trim().toUpperCase());
+  }
+
+  inicial(client: Client): string {
+    return (client.firstName ?? '?').trim().charAt(0).toUpperCase() || '?';
+  }
+
+  verNoMapa(client: Client): void {
+    this.router.navigate([ROTA_MAPA], {
+      queryParams: { ids: client.id, nome: client.firstName },
+    });
+  }
+
+  verNoDashboard(client: Client): void {
+    this.router.navigate([ROTA_DASHBOARD], {
+      queryParams: { estacao: this.chaveEstacao(client.firstName), cliente: client.id },
+    });
   }
 
   loadClients(): void {
     const direction = this.sort?.direction || 'asc';
     const sortField = this.sort?.active || 'firstName';
+    this.carregando = true;
 
     this.clientService.findAll(
       this.pageIndex,
@@ -111,11 +172,13 @@ export class ClientListComponent implements AfterViewInit, OnInit {
       next: (response) => {
         this.dataSource = response._embedded?.clients ?? response.content ?? [];
         this.totalElements = response.page?.totalElements ?? response.totalElements ?? 0;
+        this.carregando = false;
       },
       error: (err) => {
         console.error('Erro ao carregar estações:', err);
         this.dataSource = [];
         this.totalElements = 0;
+        this.carregando = false;
         this.snackbar.error('Erro ao carregar estações!');
       }
     });

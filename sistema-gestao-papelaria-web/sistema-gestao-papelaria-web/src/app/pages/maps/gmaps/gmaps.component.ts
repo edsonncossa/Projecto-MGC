@@ -425,7 +425,10 @@ export class GmapsComponent implements OnInit, OnDestroy {
   verNoDashboard(): void {
     if (!this.selecionada) return;
     this.router.navigate([ROTA_DASHBOARD], {
-      queryParams: { estacao: this.chaveEstacao(this.selecionada.firstName) },
+      queryParams: {
+        estacao: this.chaveEstacao(this.selecionada.firstName),
+        cliente: this.selecionada.id,
+      },
     });
   }
 
