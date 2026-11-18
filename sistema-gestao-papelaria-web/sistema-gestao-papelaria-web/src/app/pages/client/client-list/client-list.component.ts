@@ -1,5 +1,5 @@
 import { AfterViewInit, Component, OnDestroy, OnInit, ViewChild } from '@angular/core';
-import { Router } from '@angular/router';
+import { Route, Router } from '@angular/router';
 import { Subject, Subscription } from 'rxjs';
 import { debounceTime } from 'rxjs/operators';
 import { CommonModule } from '@angular/common';
@@ -24,7 +24,11 @@ import {
   NbInputModule 
 } from '@nebular/theme';
 
-/** Rotas de destino (ajuste se estiverem montadas noutro caminho). */
+/**
+ * Caminho de reserva do mapa. Normalmente não é usado: `rotaDoMapa()` descobre o caminho real
+ * na configuração de rotas. Se o botão "Ver no mapa" avisar que não encontrou a rota, copie para
+ * aqui o endereço que aparece no browser quando abre o mapa pelo menu (sem ?parâmetros).
+ */
 const ROTA_MAPA = '/pages/maps/gmaps';
 const ROTA_DASHBOARD = '/pages/dashboard';
 
@@ -145,9 +149,44 @@ export class ClientListComponent implements AfterViewInit, OnInit, OnDestroy {
     return (client.firstName ?? '?').trim().charAt(0).toUpperCase() || '?';
   }
 
+  /**
+   * Descobre o caminho do mapa na configuração de rotas da aplicação: procura, em qualquer nível,
+   * a rota "maps"/"mapa" (onde está o módulo do mapa) e acrescenta "gmaps". Assim funciona
+   * seja qual for o prefixo (/pages, /admin, …). Se não encontrar, usa ROTA_MAPA.
+   */
+  private rotaDoMapa(): string {
+    const procurar = (rotas: Route[], prefixo: string): string | null => {
+      for (const r of rotas) {
+        const caminho = r.path ?? '';
+        const completo = caminho ? `${prefixo}/${caminho}` : prefixo;
+
+        if (/^gmaps$/i.test(caminho)) return completo;
+        if (/^(g?maps?|mapas?)$/i.test(caminho)) return `${completo}/gmaps`;
+
+        // `_loadedRoutes` só existe em módulos lazy já visitados; é opcional.
+        const filhos = r.children ?? (r as { _loadedRoutes?: Route[] })._loadedRoutes;
+        if (filhos) {
+          const achada = procurar(filhos, completo);
+          if (achada) return achada;
+        }
+      }
+      return null;
+    };
+    return procurar(this.router.config, '') ?? ROTA_MAPA;
+  }
+
+  /**
+   * Abre o mapa com ESTA estação selecionada. Envia só o id: o parâmetro `nome` faria o mapa
+   * juntar todos os meters do mesmo grupo (ex.: PRS1 M1 e M2) e escolher o primeiro localizado.
+   */
   verNoMapa(client: Client): void {
-    this.router.navigate([ROTA_MAPA], {
-      queryParams: { ids: client.id, nome: client.firstName },
+    const destino = this.rotaDoMapa();
+    this.router.navigate([destino], { queryParams: { ids: client.id } }).then(ok => {
+      // Uma rota inexistente cai na rota "curinga" (normalmente o dashboard): avisa em vez de calar.
+      if (ok && !this.router.url.split('?')[0].startsWith(destino)) {
+        this.snackbar.error(
+          `Não encontrei a página do mapa em "${destino}". Ajuste ROTA_MAPA no client-list.component.ts.`);
+      }
     });
   }
 
