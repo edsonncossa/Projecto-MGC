@@ -1,9 +1,10 @@
 import { Component, OnInit, AfterContentInit, OnDestroy, inject } from '@angular/core';
 import { BreakpointObserver } from '@angular/cdk/layout';
 import { CommonModule } from '@angular/common';
-import { filter, fromEvent, map, Subject, takeUntil } from 'rxjs';
+import { BehaviorSubject, catchError, combineLatest, filter, fromEvent, map, of, Subject, switchMap, takeUntil } from 'rxjs';
 import { NbMenuItem, NbSidebarService,NbMenuService } from '@nebular/theme';
-import { MENU_ITEMS } from './shared/models/menu';
+import { buildMenu } from './shared/models/menu';
+import { ModuleService } from './services/module.service';
 import { Router, NavigationEnd } from '@angular/router';
 import { AuthService } from './services/auth.service';
 import { LoadingService } from './shared/services/loading.service';
@@ -21,13 +22,14 @@ export class AppComponent implements OnInit, AfterContentInit, OnDestroy {
   public isSmallScreen = false;
   public popText = false;
   public applyShadow = false;
-  public items_menu: NbMenuItem[] = MENU_ITEMS;
+  public items_menu: NbMenuItem[] = [];
   public menuName = '';
   defaultAvatar = 'assets/perfil.png';
-  public userMenu: NbMenuItem[] = [
-    { title: 'Perfil', icon: 'person-outline', data: 'profile' },
-    { title: 'Sair', icon: 'log-out-outline', data: 'logout' },
-  ];
+
+  private readonly profileItem: NbMenuItem = { title: 'Perfil', icon: 'person-outline', data: 'profile' };
+  private readonly switchItem: NbMenuItem = { title: 'Trocar de módulo', icon: 'swap-outline', data: 'switch-module' };
+  private readonly logoutItem: NbMenuItem = { title: 'Sair', icon: 'log-out-outline', data: 'logout' };
+  public userMenu: NbMenuItem[] = [this.profileItem, this.logoutItem];
 
   // Injeções de Serviço
   private sidebarService = inject(NbSidebarService);
@@ -35,6 +37,8 @@ export class AppComponent implements OnInit, AfterContentInit, OnDestroy {
   private route = inject(Router);
   public auth = inject(AuthService);
   private nbMenuService = inject(NbMenuService);
+  private moduleService = inject(ModuleService);
+  private url$ = new BehaviorSubject<string>('');
 
   center: google.maps.LatLngLiteral = { lat: -25.9653, lng: 32.5892 };
   zoom = 12;
@@ -54,6 +58,12 @@ export class AppComponent implements OnInit, AfterContentInit, OnDestroy {
   private destroy$ = new Subject<void>();
 
   isLoggedIn$ = this.auth.authStatus$;
+
+  /** O layout (header + menu) só aparece com sessão e fora do ecrã de escolha de módulo. */
+  showLayout$ = combineLatest([this.isLoggedIn$, this.url$]).pipe(
+    map(([logged, url]) => logged && !url.startsWith('/modulos'))
+  );
+
   isLoading$ = this.loadingService.loading$;
 
   isSmallScreen$ = this.breakpointObserver
@@ -67,13 +77,26 @@ export class AppComponent implements OnInit, AfterContentInit, OnDestroy {
   constructor(public loadingService: LoadingService) { }
 
   ngOnInit(): void {
-    if (this.auth.isAuthenticated()) {
-      const userRoles = this.auth.getRoles();
+    // Menu: recalculado no login/logout e sempre que o módulo activo muda.
+    combineLatest([this.auth.authStatus$, this.moduleService.active$])
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(([logged, module]) => {
+        const roles = logged ? (this.auth.getRoles() || []) : [];
+        this.items_menu = buildMenu(module?.code ?? null, roles);
+        this.updateMenuName(this.url$.value);
+      });
 
-      this.items_menu = MENU_ITEMS.filter((item: any) =>
-        !item.roles || item.roles.some((role: string) => userRoles.includes(role))
-      );
-    }
+    // Menu do utilizador: "Trocar de módulo" só aparece com 2 ou mais módulos.
+    this.auth.authStatus$
+      .pipe(
+        switchMap(logged => logged ? this.moduleService.list().pipe(catchError(() => of([]))) : of([])),
+        takeUntil(this.destroy$)
+      )
+      .subscribe(list => {
+        this.userMenu = list.length > 1
+          ? [this.profileItem, this.switchItem, this.logoutItem]
+          : [this.profileItem, this.logoutItem];
+      });
 
     // Scroll listener
     const content = document.getElementsByClassName(SCROLL_CONTAINER)[0];
@@ -94,13 +117,8 @@ export class AppComponent implements OnInit, AfterContentInit, OnDestroy {
         takeUntil(this.destroy$)
       )
       .subscribe((event: NavigationEnd) => {
-        const moduleName = event.url.split('/')[1];
-
-        const menuItem = this.items_menu.find(
-          (item: NbMenuItem) => item.link === `/${moduleName}`
-        );
-
-        this.menuName = menuItem?.title ?? 'Dashboard';
+        this.url$.next(event.urlAfterRedirects);
+        this.updateMenuName(event.urlAfterRedirects);
       });
 
       this.nbMenuService.onItemClick()
@@ -111,14 +129,24 @@ export class AppComponent implements OnInit, AfterContentInit, OnDestroy {
       )
       .subscribe((action) => {
         if (action === 'logout') {
+          this.moduleService.clear();
           this.auth.logout();
-          this.route.navigate(['/auth/login']).then(() => {
-        // 2. Recarrega a página para limpar o estado em memória do Nebular/Angular
-        window.location.reload();});
+          this.route.navigate(['/login']).then(() => {
+            // Recarrega a página para limpar o estado em memória do Nebular/Angular
+            window.location.reload();
+          });
         } else if (action === 'profile') {
           this.route.navigate(['/users/myProfile']);
+        } else if (action === 'switch-module') {
+          this.route.navigate(['/modulos']);
         }
       });
+  }
+
+  private updateMenuName(url: string): void {
+    const base = '/' + (url.split('?')[0].split('/')[1] ?? '');
+    const menuItem = this.items_menu.find((item: NbMenuItem) => item.link === base);
+    this.menuName = menuItem?.title ?? this.moduleService.current()?.name ?? '';
   }
 
   toggleSidebar(): boolean {

@@ -54,14 +54,6 @@ public class AuthController implements AuthControllerDocs {
 		return ResponseEntity.ok().body(token);
 	}
 
-	@PostMapping(value = "/createUser", consumes = { MediaType.APPLICATION_JSON_VALUE, MediaType.APPLICATION_XML_VALUE,
-			MediaType.APPLICATION_YAML_VALUE }, produces = { MediaType.APPLICATION_JSON_VALUE,
-					MediaType.APPLICATION_XML_VALUE, MediaType.APPLICATION_YAML_VALUE })
-	@Override
-	public AccountCredentialsDTO create(@RequestBody AccountCredentialsDTO credentials) {
-		return service.create(credentials);
-	}
-
 	@PutMapping(value = "/change-password", consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
 	public ResponseEntity<?> changePassword(@RequestBody ChangePasswordDTO password) {
 		try {

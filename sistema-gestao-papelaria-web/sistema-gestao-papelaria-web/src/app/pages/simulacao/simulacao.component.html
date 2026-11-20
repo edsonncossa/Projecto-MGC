@@ -1,0 +1,489 @@
+<div class="page" [formGroup]="form">
+
+  <!-- ───────────── Cabeçalho ───────────── -->
+  <header class="topbar">
+    <a class="back" routerLink="/modulos">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 12H5M11 6l-6 6 6 6" /></svg>
+      Módulos
+    </a>
+    <div class="titles">
+      <h1>Simulador de capacidade CNG</h1>
+      <p>Altere qualquer parâmetro: os indicadores recalculam de imediato.</p>
+    </div>
+  </header>
+
+  <!-- ───────────── Cenário ───────────── -->
+  <section class="scenario-bar">
+    <label class="tb-field grow">
+      <span>Nome do cenário</span>
+      <input type="text" formControlName="name" maxlength="80" placeholder="Ex.: LIMAK + Galileo" />
+    </label>
+
+    <label class="tb-field">
+      <span>Cenário de exemplo</span>
+      <select (change)="onPreset($event)">
+        <option *ngFor="let p of presets" [value]="p.code" [selected]="p.code === presetCode">
+          {{ p.code }} · {{ p.name }}
+        </option>
+      </select>
+    </label>
+
+    <div class="tb-actions">
+      <button type="button" class="btn ghost" (click)="reset()">Repor base</button>
+      <button type="button" class="btn" [class.on]="reference" (click)="toggleReference()"
+              title="Compara os indicadores seguintes com os de agora">
+        {{ reference ? 'Limpar referência' : 'Fixar como referência' }}
+      </button>
+    </div>
+
+    <p class="scenario-note">
+      <span class="chip dirty" *ngIf="form.dirty">Alterado</span>
+      <span *ngIf="!form.dirty">{{ presetDescription }}</span>
+      <span *ngIf="form.dirty">Valores alterados face ao cenário {{ presetCode }}.</span>
+      <span class="chip ref" *ngIf="reference">Referência: {{ reference.name }}</span>
+    </p>
+  </section>
+
+  <!-- ───────────── Indicadores de viabilidade (sempre visíveis) ───────────── -->
+  <section class="kpis" [class.is-stale]="stale" aria-label="Indicadores de viabilidade" aria-live="polite">
+
+    <p class="stale-note" *ngIf="stale" role="alert">
+      Há campos inválidos (a vermelho). Os indicadores mostram o último cálculo válido.
+    </p>
+
+    <article class="kpi" [ngClass]="'st-' + result.systemStatus" [class.pulse]="pulse.system">
+      <header>
+        <span class="kpi-label">Viabilidade (carga do gargalo)</span>
+        <span class="chip status">{{ verdictLabel[result.verdict] }}</span>
+      </header>
+      <div class="kpi-value">{{ utilText(result.systemUtil) }}</div>
+      <div class="gauge" role="img" [attr.aria-label]="'Carga do gargalo ' + utilText(result.systemUtil)">
+        <span class="fill" [style.width.%]="gauge(result.systemUtil)"></span>
+        <span class="mark100" [style.left.%]="mark100"></span>
+      </div>
+      <p class="kpi-sub" *ngIf="result.bottleneck">
+        Gargalo: <strong>{{ result.bottleneck === 'trucks' ? 'camiões' : 'compressores' }}</strong>
+      </p>
+      <p class="kpi-sub" *ngIf="!result.bottleneck">Sem procura</p>
+      <span class="delta" *ngIf="reference" [ngClass]="deltaClass('system')">{{ deltaText('system') }}</span>
+    </article>
+
+    <article class="kpi" [ngClass]="'st-' + result.compressorStatus" [class.pulse]="pulse.comp">
+      <header>
+        <span class="kpi-label">Compressores</span>
+        <span class="chip status">{{ statusLabel[result.compressorStatus] }}</span>
+      </header>
+      <div class="kpi-value">{{ utilText(result.compressorUtil) }}</div>
+      <div class="gauge">
+        <span class="fill" [style.width.%]="gauge(result.compressorUtil)"></span>
+        <span class="mark100" [style.left.%]="mark100"></span>
+      </div>
+      <p class="kpi-sub">{{ fmtNum(result.demand) }} / {{ fmtNum(result.compressorCap) }} MATs/dia</p>
+      <p class="kpi-foot">
+        Margem de crescimento
+        <strong [class.low]="result.growthMargin.compressors < 0.1">{{ growthText(result.growthMargin.compressors) }}</strong>
+      </p>
+      <span class="delta" *ngIf="reference" [ngClass]="deltaClass('comp')">{{ deltaText('comp') }}</span>
+    </article>
+
+    <article class="kpi" [ngClass]="'st-' + result.truckStatus" [class.pulse]="pulse.truck">
+      <header>
+        <span class="kpi-label">Camiões</span>
+        <span class="chip status">{{ statusLabel[result.truckStatus] }}</span>
+      </header>
+      <div class="kpi-value">{{ utilText(result.truckUtil) }}</div>
+      <div class="gauge">
+        <span class="fill" [style.width.%]="gauge(result.truckUtil)"></span>
+        <span class="mark100" [style.left.%]="mark100"></span>
+      </div>
+      <p class="kpi-sub">{{ fmtNum(result.truckHoursNeeded, 2) }} / {{ fmtNum(result.truckHoursAvailable, 1) }} h/dia</p>
+      <p class="kpi-foot">
+        Margem de crescimento
+        <strong [class.low]="result.growthMargin.trucks < 0.1">{{ growthText(result.growthMargin.trucks) }}</strong>
+      </p>
+      <span class="delta" *ngIf="reference" [ngClass]="deltaClass('truck')">{{ deltaText('truck') }}</span>
+    </article>
+
+    <article class="kpi" [ngClass]="'v-' + result.verdict" [class.pulse]="pulse.coverage">
+      <header>
+        <span class="kpi-label">Cobertura da procura</span>
+      </header>
+      <div class="kpi-value">{{ fmtPct(result.coverage) }}</div>
+      <div class="gauge">
+        <span class="fill" [style.width.%]="result.coverage * 100"></span>
+      </div>
+      <p class="kpi-sub" *ngIf="result.coverage >= 1">A operação serve toda a procura.</p>
+      <p class="kpi-sub" *ngIf="result.coverage < 1">Só consegue servir esta fração da procura.</p>
+      <span class="delta" *ngIf="reference" [ngClass]="deltaClass('coverage')">{{ deltaText('coverage') }}</span>
+    </article>
+  </section>
+
+  <!-- ───────────── Inputs e resultados ───────────── -->
+  <div class="layout">
+
+    <!-- ===== Inputs ===== -->
+    <section class="col inputs">
+      <div class="tabs" role="tablist">
+        <button type="button" role="tab" class="tab" *ngFor="let t of tabs"
+                [class.on]="tab === t.id" [attr.aria-selected]="tab === t.id" (click)="tab = t.id">
+          {{ t.label }}
+          <span class="count" *ngIf="t.id === 'clientes'">{{ customers.length }}</span>
+          <span class="count" *ngIf="t.id === 'compressores'">{{ compressors.length }}</span>
+          <span class="count" *ngIf="t.id === 'camioes'">{{ trucks.length }}</span>
+          <span class="dot" *ngIf="tabState(t.id) as st" [ngClass]="st"></span>
+        </button>
+      </div>
+
+      <!-- Geral -->
+      <div class="panel" *ngIf="tab === 'geral'">
+        <h2>Parâmetros globais</h2>
+        <div class="grid">
+          <ng-container *ngTemplateOutlet="num; context: { c: ctl('params.hoursPerDay'), path: 'params.hoursPerDay', label: 'Horas de operação por dia', unit: 'h', hint: '1 a 24', step: 'any' }"></ng-container>
+          <ng-container *ngTemplateOutlet="num; context: { c: ctl('params.truckCapacity'), path: 'params.truckCapacity', label: 'Capacidade do camião por viagem', unit: 'MATs', hint: 'Inteiro, mínimo 1', step: '1' }"></ng-container>
+          <ng-container *ngTemplateOutlet="num; context: { c: ctl('params.loadTimeH'), path: 'params.loadTimeH', label: 'Carga/descarga no cliente', unit: 'h', hint: '', step: 'any' }"></ng-container>
+          <ng-container *ngTemplateOutlet="num; context: { c: ctl('params.swapTimeH'), path: 'params.swapTimeH', label: 'Troca no posto-mãe', unit: 'h', hint: '', step: 'any' }"></ng-container>
+          <ng-container *ngTemplateOutlet="num; context: { c: ctl('params.totalMats'), path: 'params.totalMats', label: 'Total de MATs no sistema', unit: 'MATs', hint: 'Não menor que os MATs dos clientes ativos', step: '1' }"></ng-container>
+          <ng-container *ngTemplateOutlet="num; context: { c: ctl('params.totalPads'), path: 'params.totalPads', label: 'Total de PADs no sistema', unit: 'PADs', hint: '', step: '1' }"></ng-container>
+          <ng-container *ngTemplateOutlet="num; context: { c: ctl('params.totalPrpR200'), path: 'params.totalPrpR200', label: 'Total de PRP R200', unit: 'un.', hint: '', step: '1' }"></ng-container>
+          <ng-container *ngTemplateOutlet="num; context: { c: ctl('params.totalPrpR500'), path: 'params.totalPrpR500', label: 'Total de PRP R500', unit: 'un.', hint: '', step: '1' }"></ng-container>
+        </div>
+
+        <h2 class="mt">Fator de procura global</h2>
+        <p class="muted">Multiplica as entregas de todos os clientes. Use-o para testar cenários de crescimento ou queda.</p>
+        <div class="factor">
+          <input type="range" min="50" max="300" step="5" [formControl]="ctl('params.demandFactor')"
+                 aria-label="Fator de procura global" />
+          <ng-container *ngTemplateOutlet="num; context: { c: ctl('params.demandFactor'), path: 'params.demandFactor', label: 'Fator', unit: '%', hint: '50 a 300', step: 'any' }"></ng-container>
+        </div>
+      </div>
+
+      <!-- Clientes -->
+      <div class="panel" *ngIf="tab === 'clientes'">
+        <h2>Clientes</h2>
+
+        <div class="strip" aria-label="Recursos usados pelos clientes ativos">
+          <span class="strip-item" *ngFor="let s of strip" [class.over]="s.over">
+            {{ s.label }} <strong>{{ s.used }}</strong> / {{ s.total }}
+          </span>
+        </div>
+        <p class="hint-line warn" *ngIf="issueLevel('customers')">{{ msgFor(null, 'customers') }}</p>
+
+        <div class="row-card" *ngFor="let g of customers.controls; let i = index; trackBy: trackByCtl"
+             [class.off]="!fc(g, 'active').value">
+          <div class="row-head">
+            <label class="switch" title="Cliente ativo">
+              <input type="checkbox" [formControl]="fc(g, 'active')" aria-label="Cliente ativo" />
+              <span class="track" aria-hidden="true"></span>
+            </label>
+            <div class="name-wrap" [class.err]="hasErr(fc(g, 'name'), 'customers.' + i + '.name')">
+              <input class="name" type="text" [formControl]="fc(g, 'name')" placeholder="Nome do cliente" aria-label="Nome do cliente" />
+              <small class="msg" *ngIf="msgFor(fc(g, 'name'), 'customers.' + i + '.name') as m">{{ m }}</small>
+            </div>
+            <button type="button" class="icon-btn" (click)="removeCustomer(i)" aria-label="Remover cliente" title="Remover cliente">×</button>
+          </div>
+
+          <div class="grid compact">
+            <ng-container *ngTemplateOutlet="num; context: { c: fc(g, 'roundTripH'), path: 'customers.' + i + '.roundTripH', label: 'Viagem ida e volta', unit: 'h', hint: '', step: 'any' }"></ng-container>
+            <ng-container *ngTemplateOutlet="num; context: { c: fc(g, 'matsInstalled'), path: 'customers.' + i + '.matsInstalled', label: 'MATs instalados', unit: 'MATs', hint: '', step: '1' }"></ng-container>
+            <ng-container *ngTemplateOutlet="num; context: { c: fc(g, 'dailyDeliveries'), path: 'customers.' + i + '.dailyDeliveries', label: 'Entregas por dia', unit: 'MATs', hint: '', step: 'any' }"></ng-container>
+
+            <label class="fld">
+              <span class="lbl">Tipo de PRP</span>
+              <div class="inp">
+                <select [formControl]="fc(g, 'prpType')">
+                  <option value="R200">R200</option>
+                  <option value="R500">R500</option>
+                </select>
+              </div>
+            </label>
+
+            <label class="fld" [class.err]="hasErr(fc(g, 'pads'), 'customers.' + i + '.pads')">
+              <span class="lbl">PADs</span>
+              <div class="inp">
+                <input type="number" inputmode="numeric" step="1" [formControl]="fc(g, 'pads')" (input)="padsEdited(g)" />
+                <span class="unit">un.</span>
+              </div>
+              <small class="msg" *ngIf="msgFor(fc(g, 'pads'), 'customers.' + i + '.pads') as m">{{ m }}</small>
+              <small class="hint" *ngIf="fc(g, 'padsAuto').value">Automático: MATs + 1</small>
+              <button type="button" class="link-btn" *ngIf="!fc(g, 'padsAuto').value" (click)="padsFollowMats(g)">Usar MATs + 1</button>
+            </label>
+
+            <ng-container *ngTemplateOutlet="num; context: { c: fc(g, 'daysPerWeek'), path: 'customers.' + i + '.daysPerWeek', label: 'Dias de operação / semana', unit: 'dias', hint: '1 a 7', step: '1' }"></ng-container>
+          </div>
+
+          <p class="row-warn" *ngIf="issueLevel('customers.' + i + '.dailyDeliveries') === 'warn'">
+            {{ msgFor(null, 'customers.' + i + '.dailyDeliveries') }}
+          </p>
+        </div>
+
+        <p class="muted" *ngIf="!customers.length">Sem clientes. Adicione um para ter procura.</p>
+        <button type="button" class="btn add" (click)="addCustomer()">+ Adicionar cliente</button>
+      </div>
+
+      <!-- Compressores -->
+      <div class="panel" *ngIf="tab === 'compressores'">
+        <h2>Compressores</h2>
+        <p class="muted">A procura reparte-se pelos compressores ativos em proporção à capacidade de cada um.</p>
+
+        <div class="row-card" *ngFor="let g of compressors.controls; let i = index; trackBy: trackByCtl"
+             [class.off]="!fc(g, 'active').value">
+          <div class="row-head">
+            <label class="switch" title="Compressor ativo">
+              <input type="checkbox" [formControl]="fc(g, 'active')" aria-label="Compressor ativo" />
+              <span class="track" aria-hidden="true"></span>
+            </label>
+            <div class="name-wrap" [class.err]="hasErr(fc(g, 'name'), 'compressors.' + i + '.name')">
+              <input class="name" type="text" [formControl]="fc(g, 'name')" placeholder="Nome do compressor" aria-label="Nome do compressor" />
+            </div>
+            <span class="cap-pill" *ngIf="compRes(g) as r">{{ fmtNum(r.capacity) }} MATs/dia</span>
+            <button type="button" class="icon-btn" (click)="removeCompressor(i)" aria-label="Remover compressor" title="Remover compressor">×</button>
+          </div>
+          <div class="grid compact">
+            <ng-container *ngTemplateOutlet="num; context: { c: fc(g, 'compressionTimeH'), path: 'compressors.' + i + '.compressionTimeH', label: 'Compressão por 2 MATs', unit: 'h', hint: '', step: 'any' }"></ng-container>
+            <ng-container *ngTemplateOutlet="num; context: { c: fc(g, 'oilDrainH'), path: 'compressors.' + i + '.oilDrainH', label: 'Purga de óleo por 2 MATs', unit: 'h', hint: '', step: 'any' }"></ng-container>
+            <ng-container *ngTemplateOutlet="num; context: { c: fc(g, 'lostHours'), path: 'compressors.' + i + '.lostHours', label: 'Horas perdidas por dia', unit: 'h', hint: '', step: 'any' }"></ng-container>
+          </div>
+        </div>
+
+        <p class="muted" *ngIf="!compressors.length">Sem compressores: a operação não tem capacidade de compressão.</p>
+        <button type="button" class="btn add" (click)="addCompressor()">+ Adicionar compressor</button>
+      </div>
+
+      <!-- Camiões -->
+      <div class="panel" *ngIf="tab === 'camioes'">
+        <h2>Camiões</h2>
+        <p class="muted">Cada camião recebe horas de trabalho em proporção às horas úteis que tem por dia.</p>
+
+        <div class="row-card" *ngFor="let g of trucks.controls; let i = index; trackBy: trackByCtl"
+             [class.off]="!fc(g, 'available').value">
+          <div class="row-head">
+            <label class="switch" title="Camião disponível">
+              <input type="checkbox" [formControl]="fc(g, 'available')" aria-label="Camião disponível" />
+              <span class="track" aria-hidden="true"></span>
+            </label>
+            <div class="name-wrap" [class.err]="hasErr(fc(g, 'name'), 'trucks.' + i + '.name')">
+              <input class="name" type="text" [formControl]="fc(g, 'name')" placeholder="Nome do camião" aria-label="Nome do camião" />
+            </div>
+            <span class="cap-pill" *ngIf="truckRes(g) as r">{{ fmtNum(r.capacity) }} h úteis/dia</span>
+            <button type="button" class="icon-btn" (click)="removeTruck(i)" aria-label="Remover camião" title="Remover camião">×</button>
+          </div>
+          <div class="grid compact">
+            <ng-container *ngTemplateOutlet="num; context: { c: fc(g, 'shiftHours'), path: 'trucks.' + i + '.shiftHours', label: 'Horas de turno por dia', unit: 'h', hint: '0 a 24', step: 'any' }"></ng-container>
+            <ng-container *ngTemplateOutlet="num; context: { c: fc(g, 'lostHours'), path: 'trucks.' + i + '.lostHours', label: 'Horas perdidas por dia', unit: 'h', hint: '', step: 'any' }"></ng-container>
+          </div>
+        </div>
+
+        <p class="muted" *ngIf="!trucks.length">Sem camiões: não há como fazer entregas.</p>
+        <button type="button" class="btn add" (click)="addTruck()">+ Adicionar camião</button>
+      </div>
+
+      <!-- Análise -->
+      <div class="panel" *ngIf="tab === 'analise'">
+        <h2>Teste de esforço</h2>
+        <div class="grid">
+          <ng-container *ngTemplateOutlet="num; context: { c: ctl('analysis.stressStep'), path: 'analysis.stressStep', label: 'Passo', unit: '%', hint: 'Aumento da procura entre pontos', step: 'any' }"></ng-container>
+          <ng-container *ngTemplateOutlet="num; context: { c: ctl('analysis.stressMax'), path: 'analysis.stressMax', label: 'Aumento máximo', unit: '%', hint: 'Até onde testar', step: 'any' }"></ng-container>
+        </div>
+        <p class="hint-line error" *ngIf="stressRangeError">O aumento máximo tem de ser maior ou igual ao passo.</p>
+
+        <h2 class="mt">Viagens</h2>
+        <div class="choice" formGroupName="analysis">
+          <label class="radio" [class.on]="ctl('analysis.tripMode').value === 'fractional'">
+            <input type="radio" formControlName="tripMode" value="fractional" />
+            <span><strong>Frações de viagem</strong> (como o Excel). Uma entrega de 1 MAT com camião de 2 conta meia viagem.</span>
+          </label>
+          <label class="radio" [class.on]="ctl('analysis.tripMode').value === 'whole'">
+            <input type="radio" formControlName="tripMode" value="whole" />
+            <span><strong>Viagens inteiras.</strong> Arredonda para cima por cliente; dá horas de camião mais realistas.</span>
+          </label>
+        </div>
+
+        <h2 class="mt">Limiares de estado</h2>
+        <p class="muted">Acima de 100 % o recurso é sempre «Insuficiente».</p>
+        <div class="grid">
+          <ng-container *ngTemplateOutlet="num; context: { c: ctl('analysis.underUsed'), path: 'analysis.underUsed', label: 'Subutilizado até', unit: '%', hint: '', step: 'any' }"></ng-container>
+          <ng-container *ngTemplateOutlet="num; context: { c: ctl('analysis.high'), path: 'analysis.high', label: 'Normal até', unit: '%', hint: '', step: 'any' }"></ng-container>
+          <ng-container *ngTemplateOutlet="num; context: { c: ctl('analysis.overload'), path: 'analysis.overload', label: 'Elevado até', unit: '%', hint: 'Depois: sobrecarga / crítico', step: 'any' }"></ng-container>
+        </div>
+        <p class="hint-line error" *ngIf="thresholdOrderError">
+          Os limiares têm de estar por ordem crescente e abaixo de 100 %.
+        </p>
+      </div>
+    </section>
+
+    <!-- ===== Resultados ===== -->
+    <section class="col outputs" [class.dim]="stale">
+
+      <!-- Gargalo -->
+      <article class="card bottleneck" [ngClass]="'st-' + result.systemStatus">
+        <h3>Gargalo</h3>
+        <ng-container *ngIf="result.bottleneck; else noDemand">
+          <p class="big">
+            {{ result.bottleneck === 'trucks' ? 'Camiões' : 'Compressores' }}
+            <span>{{ utilText(result.systemUtil) }}</span>
+          </p>
+          <div class="two">
+            <div [class.limit]="result.bottleneck === 'compressors'">
+              <span class="t">Compressores</span>
+              <strong>{{ utilText(result.compressorUtil) }}</strong>
+              <span class="s" [class.neg]="result.spare.compressorMats < 0">
+                {{ result.spare.compressorMats < 0 ? 'Défice' : 'Folga' }}: {{ fmtNum(result.spare.compressorMats < 0 ? -result.spare.compressorMats : result.spare.compressorMats) }} MATs/dia
+              </span>
+            </div>
+            <div [class.limit]="result.bottleneck === 'trucks'">
+              <span class="t">Camiões</span>
+              <strong>{{ utilText(result.truckUtil) }}</strong>
+              <span class="s" [class.neg]="result.spare.truckHours < 0">
+                {{ result.spare.truckHours < 0 ? 'Défice' : 'Folga' }}: {{ fmtNum(result.spare.truckHours < 0 ? -result.spare.truckHours : result.spare.truckHours, 2) }} h/dia
+              </span>
+            </div>
+          </div>
+        </ng-container>
+        <ng-template #noDemand><p class="muted">Sem procura: não há gargalo.</p></ng-template>
+      </article>
+
+      <!-- Alertas -->
+      <article class="card">
+        <h3>Alertas <span class="badge">{{ result.alerts.length }}</span></h3>
+        <p class="muted" *ngIf="!result.alerts.length">Nenhum alerta para esta configuração.</p>
+        <ul class="alerts" *ngIf="result.alerts.length">
+          <li *ngFor="let a of result.alerts" [ngClass]="'sev-' + a.severity">
+            <span class="sev">{{ severityLabel[a.severity] }}</span>
+            <div>
+              <strong>{{ a.title }}</strong>
+              <p>{{ a.detail }}</p>
+            </div>
+          </li>
+        </ul>
+      </article>
+
+      <!-- Teste de esforço -->
+      <article class="card">
+        <h3>Teste de esforço</h3>
+        <p class="muted">Utilização a medida que a procura cresce. Onde a linha cruza os 100 %, o recurso satura.</p>
+        <svg class="chart" [attr.viewBox]="'0 0 ' + chart.w + ' ' + chart.h" role="img"
+             aria-label="Utilização de compressores e camiões contra o aumento da procura">
+          <rect class="danger" [attr.x]="chart.plotL" [attr.y]="chart.plotT"
+                [attr.width]="chart.plotR - chart.plotL" [attr.height]="chart.y100 - chart.plotT"></rect>
+          <g class="grid-lines">
+            <line *ngFor="let t of chart.yTicks" [attr.x1]="chart.plotL" [attr.x2]="chart.plotR" [attr.y1]="t.y" [attr.y2]="t.y"></line>
+          </g>
+          <g class="axis-labels">
+            <text *ngFor="let t of chart.yTicks" [attr.x]="chart.plotL - 8" [attr.y]="t.y + 4" text-anchor="end">{{ t.label }}</text>
+            <text *ngFor="let t of chart.xTicks" [attr.x]="t.x" [attr.y]="chart.plotB + 20" text-anchor="middle">{{ t.label }}</text>
+          </g>
+          <line class="line100" [attr.x1]="chart.plotL" [attr.x2]="chart.plotR" [attr.y1]="chart.y100" [attr.y2]="chart.y100"></line>
+          <polyline class="curve comp" [attr.points]="chart.comp"></polyline>
+          <polyline class="curve truck" [attr.points]="chart.truck"></polyline>
+          <g *ngFor="let m of chart.markers" [ngClass]="'marker ' + m.kind">
+            <line [attr.x1]="m.x" [attr.x2]="m.x" [attr.y1]="chart.plotT" [attr.y2]="chart.plotB"></line>
+            <circle [attr.cx]="m.x" [attr.cy]="chart.y100" r="4.5"></circle>
+            <text [attr.x]="m.x" [attr.y]="chart.plotT + (m.kind === 'trucks' ? 24 : 10)" text-anchor="middle">{{ m.label }}</text>
+          </g>
+        </svg>
+        <div class="legend">
+          <span class="lg comp">Compressores</span>
+          <span class="lg truck">Camiões</span>
+          <span class="lg lim">Limite de 100 %</span>
+        </div>
+
+        <details class="stress-table">
+          <summary>Ver tabela do teste de esforço</summary>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr><th>Procura</th><th>MATs/dia</th><th>Compressores</th><th>Camiões</th><th>Estado</th></tr>
+              </thead>
+              <tbody>
+                <tr *ngFor="let p of result.stress" [class.bad]="!p.viable">
+                  <td>{{ p.increase === 0 ? 'Base' : fmtSigned(p.increase, 0) }}</td>
+                  <td>{{ fmtNum(p.demand) }}</td>
+                  <td>{{ utilText(p.compressorUtil) }}</td>
+                  <td>{{ utilText(p.truckUtil) }}</td>
+                  <td>{{ p.viable ? 'OK' : 'Insuficiente' }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </details>
+      </article>
+
+      <!-- Equipamentos -->
+      <article class="card">
+        <h3>Utilização por equipamento</h3>
+        <ul class="bars">
+          <li *ngFor="let r of result.compressors" [ngClass]="'st-' + r.status">
+            <span class="b-name">{{ r.name }} <em>compressor</em></span>
+            <span class="gauge slim"><span class="fill" [style.width.%]="gauge(r.util)"></span><span class="mark100" [style.left.%]="mark100"></span></span>
+            <span class="b-val">{{ r.status === 'OFFLINE' ? 'Offline' : utilText(r.util) }}</span>
+          </li>
+          <li *ngFor="let r of result.trucks" [ngClass]="'st-' + r.status">
+            <span class="b-name">{{ r.name }} <em>camião</em></span>
+            <span class="gauge slim"><span class="fill" [style.width.%]="gauge(r.util)"></span><span class="mark100" [style.left.%]="mark100"></span></span>
+            <span class="b-val">{{ r.status === 'OFFLINE' ? 'Offline' : utilText(r.util) }}</span>
+          </li>
+        </ul>
+      </article>
+
+      <!-- Carga por cliente -->
+      <article class="card">
+        <h3>Carga por cliente</h3>
+        <p class="muted">Horas de camião por dia. Os clientes acima de {{ fmtPct(heavyShare, 0) }} do total ficam em destaque.</p>
+        <ul class="loads">
+          <ng-container *ngFor="let c of result.perCustomer">
+            <li *ngIf="c.active" [class.heavy]="c.share > heavyShare">
+              <span class="l-name">{{ c.name }}</span>
+              <span class="l-bar"><span [style.width.%]="c.share * 100"></span></span>
+              <span class="l-val">{{ fmtNum(c.truckHours, 2) }} h · {{ fmtPct(c.share) }}</span>
+              <span class="l-sub">{{ fmtNum(c.tripsPerDay, 1) }} viagens/dia · ciclo de {{ fmtNum(c.cycleH, 2) }} h</span>
+            </li>
+          </ng-container>
+        </ul>
+        <p class="muted" *ngIf="!result.truckHoursNeeded">Sem clientes com entregas.</p>
+      </article>
+
+      <!-- Inventário -->
+      <article class="card">
+        <h3>Posto-mãe e autonomia</h3>
+        <div class="tiles">
+          <div class="tile" [class.warn]="result.inventory.matsFree <= 1" [class.bad]="result.inventory.matsFree < 0">
+            <span class="t">MATs livres</span><strong>{{ fmtNum(result.inventory.matsFree, 0) }}</strong>
+          </div>
+          <div class="tile" [class.bad]="result.inventory.padsFree < 0">
+            <span class="t">PADs livres</span><strong>{{ fmtNum(result.inventory.padsFree, 0) }}</strong>
+          </div>
+          <div class="tile" [class.warn]="result.inventory.prpFree.R200 === 0" [class.bad]="result.inventory.prpFree.R200 < 0">
+            <span class="t">PRP R200 livres</span><strong>{{ result.inventory.prpFree.R200 }}</strong>
+          </div>
+          <div class="tile" [class.warn]="result.inventory.prpFree.R500 === 0" [class.bad]="result.inventory.prpFree.R500 < 0">
+            <span class="t">PRP R500 livres</span><strong>{{ result.inventory.prpFree.R500 }}</strong>
+          </div>
+        </div>
+
+        <h4>Autonomia dos clientes</h4>
+        <ul class="autonomy">
+          <ng-container *ngFor="let c of result.perCustomer">
+            <li *ngIf="c.active && c.autonomyDays !== null" [class.short]="(c.autonomyDays || 0) < minAutonomy">
+              <span>{{ c.name }}</span>
+              <strong>{{ fmtNum(c.autonomyDays || 0) }} dias</strong>
+            </li>
+          </ng-container>
+        </ul>
+        <p class="muted">Autonomia = MATs instalados ÷ entregas por dia. Abaixo de {{ fmtNum(minAutonomy) }} dias gera alerta.</p>
+      </article>
+    </section>
+  </div>
+</div>
+
+<!-- ───────────── Campo numérico reutilizável ───────────── -->
+<ng-template #num let-c="c" let-path="path" let-label="label" let-unit="unit" let-hint="hint" let-step="step">
+  <label class="fld" [class.err]="hasErr(c, path)" [class.warn]="!hasErr(c, path) && issueLevel(path) === 'warn'">
+    <span class="lbl">{{ label }}</span>
+    <div class="inp">
+      <input type="number" inputmode="decimal" [attr.step]="step" [formControl]="c" />
+      <span class="unit" *ngIf="unit">{{ unit }}</span>
+    </div>
+    <small class="msg" *ngIf="msgFor(c, path) as m">{{ m }}</small>
+    <small class="hint" *ngIf="hint && !msgFor(c, path)">{{ hint }}</small>
+  </label>
+</ng-template>

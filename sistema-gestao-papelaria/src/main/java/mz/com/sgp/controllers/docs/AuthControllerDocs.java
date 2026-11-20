@@ -35,17 +35,4 @@ public interface AuthControllerDocs {
     ResponseEntity<?> refreshToken(
             String username,
             String refreshToken);
-
-    @Operation(
-            summary = "Create a new User",
-            description = "Registers a new user in the system with the provided credentials.",
-            tags = {"User Management"},
-            responses = {
-                    @ApiResponse(description = "Created", responseCode = "201", content = @Content),
-                    @ApiResponse(description = "Bad Request", responseCode = "400", content = @Content),
-                    @ApiResponse(description = "Conflict", responseCode = "409", content = @Content),
-                    @ApiResponse(description = "Internal Server Error", responseCode = "500", content = @Content)
-            }
-    )
-    AccountCredentialsDTO create(AccountCredentialsDTO credentials);
 }

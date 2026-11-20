@@ -5,6 +5,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Objects;
 
+import org.hibernate.annotations.SQLJoinTableRestriction;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 
@@ -45,9 +46,12 @@ public class UserEntity extends AuditableEntity implements UserDetails {
 	private Boolean enabled;
 
 	@ManyToMany(fetch = FetchType.EAGER)
-	@JoinTable(name = "user_permission", joinColumns = { @JoinColumn(name = "id_user") }, inverseJoinColumns = {
-			@JoinColumn(name = "id_permission") })
+	@JoinTable(name = "user_permission",
+	        joinColumns = { @JoinColumn(name = "id_user") },
+	        inverseJoinColumns = { @JoinColumn(name = "id_permission") })
+	@SQLJoinTableRestriction("status = 1")
 	private List<PermissionEntity> permissionEntities;
+
 
 	@Column(name = "IMAGE", columnDefinition = "LONGTEXT", nullable = true)
 	private String image;
@@ -56,11 +60,13 @@ public class UserEntity extends AuditableEntity implements UserDetails {
 	}
 
 	public List<String> getRoles() {
-		List<String> roles = new ArrayList<>();
-		for (PermissionEntity permissionEntity : permissionEntities) {
-			roles.add(permissionEntity.getDescription());
-		}
-		return roles;
+	    List<String> roles = new ArrayList<>();
+	    if (permissionEntities != null) {
+	        for (PermissionEntity p : permissionEntities) {
+	            roles.add(p.getCode());
+	        }
+	    }
+	    return roles;
 	}
 
 	@Override

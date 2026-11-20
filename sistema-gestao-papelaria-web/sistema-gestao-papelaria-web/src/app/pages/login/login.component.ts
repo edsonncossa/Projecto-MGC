@@ -54,7 +54,7 @@ export class LoginComponent {
     this.auth.login(payload).subscribe({
       next: () => {
         this.loading = false;
-        this.router.navigate(['/dashboard']);
+        this.router.navigate(['/modulos']);   
       },
       error: (err) => {
         this.loading = false;

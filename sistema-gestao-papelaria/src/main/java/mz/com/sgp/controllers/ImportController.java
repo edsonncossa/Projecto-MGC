@@ -4,6 +4,7 @@ import java.util.List;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -17,6 +18,8 @@ import mz.com.sgp.services.ImportServices;
 
 @RestController
 @RequestMapping("/api/v1/importacao")
+@PreAuthorize("hasAuthority('MODULE_CONSUMPTION')")   // controllers de consumos
+
 public class ImportController {
 
     @Autowired

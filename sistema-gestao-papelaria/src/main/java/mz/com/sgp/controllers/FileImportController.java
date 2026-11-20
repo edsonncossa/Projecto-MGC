@@ -1,7 +1,6 @@
 package mz.com.sgp.controllers;
 
 import org.springframework.beans.factory.annotation.Autowired;
-
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
@@ -9,6 +8,7 @@ import org.springframework.hateoas.EntityModel;
 import org.springframework.hateoas.PagedModel;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -26,6 +26,7 @@ import mz.com.sgp.services.FileImportServices;
 
 @RestController
 @RequestMapping("api/FileImport/v1")
+@PreAuthorize("hasAuthority('MODULE_CONSUMPTION')")
 @Tag(name = "FileImport", description = "Endpoints for Managing FileImport")
 public class FileImportController implements FileImportControllerDocs{
 	

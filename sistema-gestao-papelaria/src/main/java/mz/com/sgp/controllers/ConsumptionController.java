@@ -14,6 +14,7 @@ import org.springframework.hateoas.PagedModel;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -30,6 +31,8 @@ import mz.com.sgp.services.ConsumptionServices;
 
 @RestController
 @RequestMapping("api/consumption/v1")
+@PreAuthorize("hasAuthority('MODULE_CONSUMPTION')")   // controllers de consumos
+
 public class ConsumptionController implements ConsumptionControllerDocs {
 
     @Autowired

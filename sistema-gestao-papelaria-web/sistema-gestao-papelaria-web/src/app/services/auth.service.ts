@@ -124,7 +124,7 @@ export class AuthService {
     localStorage.removeItem('user');
     sessionStorage.clear();
     this.authStatus.next(false);
-    this.router.navigate(['/auth/login']);
+    this.router.navigate(['/login']);
   }
 
   //  AUTENTICADO

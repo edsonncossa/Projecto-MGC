@@ -4,7 +4,7 @@
 </div>
 
 <!-- Layout Autenticado -->
-<ng-container *ngIf="isLoggedIn$ | async; else loginTemplate">
+<ng-container *ngIf="showLayout$ | async; else loginTemplate">
   <nb-layout>
 
     <!-- Header / Toolbar Superior -->
@@ -61,7 +61,7 @@
   </nb-layout>
 </ng-container>
 
-<!-- Template de Login (Apenas Renderiza o Router Outlet sem Layout) -->
+<!-- Sem layout: login e escolha de módulo (só o Router Outlet) -->
 <ng-template #loginTemplate>
   <router-outlet></router-outlet>
 </ng-template>

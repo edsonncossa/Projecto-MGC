@@ -1,6 +1,7 @@
 package mz.com.sgp.data.dto.security;
 
 import java.io.Serializable;
+import java.util.List;
 import java.util.Objects;
 
 public class AccountCredentialsDTO implements Serializable {
@@ -12,6 +13,12 @@ public class AccountCredentialsDTO implements Serializable {
 	private String password;
 
 	private String fullname;
+	
+	private List<Long> permissionIds;
+
+	public List<Long> getPermissionIds() { return permissionIds; }
+	
+	public void setPermissionIds(List<Long> permissionIds) { this.permissionIds = permissionIds; }
 
 	public AccountCredentialsDTO() {
 	}

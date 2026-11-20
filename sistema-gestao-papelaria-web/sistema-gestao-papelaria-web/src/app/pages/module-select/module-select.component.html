@@ -1,0 +1,49 @@
+<div class="page">
+  <div class="bg" aria-hidden="true">
+    <span class="blob blob-1"></span>
+    <span class="blob blob-2"></span>
+    <span class="blob blob-3"></span>
+    <span class="grid"></span>
+  </div>
+
+  <main class="card">
+    <header class="head">
+      <div class="logo-wrap"><img src="assets/MGC-Logo.png" alt="Logo MGC" /></div>
+      <h1>Escolha o módulo</h1>
+      <p>Selecione onde pretende trabalhar</p>
+    </header>
+
+    <div class="state" *ngIf="loading"><span class="spinner"></span></div>
+
+    <p class="state error" *ngIf="failed" role="alert">
+      Não foi possível carregar os módulos. Tente novamente.
+    </p>
+
+    <p class="state" *ngIf="!loading && !failed && !modules.length">
+      Sem módulos atribuídos. Contacte o administrador.
+    </p>
+
+    <div class="modules" *ngIf="!loading && modules.length">
+      <button type="button" class="module" *ngFor="let m of modules" (click)="open(m)">
+        <span class="module-icon" [ngSwitch]="m.icon">
+          <svg *ngSwitchCase="'bar_chart'" viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M5 20V10M12 20V4M19 20v-7" />
+          </svg>
+          <svg *ngSwitchCase="'tune'" viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M4 7h10M18 7h2M4 17h2M10 17h10" /><circle cx="16" cy="7" r="2" /><circle cx="8" cy="17" r="2" />
+          </svg>
+          <svg *ngSwitchDefault viewBox="0 0 24 24" aria-hidden="true">
+            <rect x="4" y="4" width="16" height="16" rx="4" />
+          </svg>
+        </span>
+        <span class="module-name">{{ m.name }}</span>
+        <svg class="arrow" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6" /></svg>
+      </button>
+    </div>
+
+    <footer class="foot">
+      <button type="button" class="link" (click)="logout()">Terminar sessão</button>
+      <span>© {{ year }} MGC</span>
+    </footer>
+  </main>
+</div>
