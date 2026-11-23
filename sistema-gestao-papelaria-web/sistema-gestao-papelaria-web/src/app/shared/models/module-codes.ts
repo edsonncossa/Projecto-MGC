@@ -4,6 +4,8 @@
  */
 export const MODULE_CODES = {
   CONSUMPTION: 'MODULE_CONSUMPTION',
+  SIMULATION: 'MODULE_SIMULATION',
+  QUALITY: 'MODULE_QUALITY',
   // Acrescente aqui os restantes, exactamente como vêm do backend:
   // CNG_SIMULATOR: 'MODULE_...',
 } as const;

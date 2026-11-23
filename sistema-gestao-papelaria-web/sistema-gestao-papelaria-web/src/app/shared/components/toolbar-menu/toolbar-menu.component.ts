@@ -16,10 +16,6 @@ export class ToolbarMenuComponent implements OnInit {
   @Input() menuTitle = '';
   @Input() items_menu: MenuItem[] = [];
   
-
-
-  
-  
   public userName = '';
 
   constructor(

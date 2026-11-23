@@ -334,7 +334,7 @@ export class SimulacaoComponent implements OnInit, OnDestroy {
       if (e['required']) return 'Obrigatório';
       if (e['min']) return `Mínimo ${e['min'].min}`;
       if (e['max']) return `Máximo ${e['max'].max}`;
-      if (e['integer']) return 'Use um número inteiro';
+      if (e['integer']) return 'Introduza um número inteiro';
       if (e['maxlength']) return 'Demasiado longo';
     }
     return this.issueMap[path]?.message ?? null;
@@ -344,7 +344,7 @@ export class SimulacaoComponent implements OnInit, OnDestroy {
     return !!c?.invalid || this.issueLevel(path) === 'error';
   }
 
-  /** Bolinha no separador: vermelha se houver erro, âmbar se só houver avisos. */
+  /** Ponto no separador: vermelha se houver erro, âmbar se só houver avisos. */
   tabState(tab: Tab): 'error' | 'warn' | null {
     const groupOf: Record<Tab, string> = {
       geral: 'params',
@@ -391,7 +391,7 @@ export class SimulacaoComponent implements OnInit, OnDestroy {
 
   addTruck(): void {
     const names = this.trucks.controls.map(c => String(c.get('name')?.value ?? ''));
-    this.trucks.push(this.truckGroup(newTruck(this.uniqueName('Truck', names))));
+    this.trucks.push(this.truckGroup(newTruck(this.uniqueName('Camião', names))));
     this.form.markAsDirty();
   }
   removeTruck(i: number): void {
@@ -477,7 +477,7 @@ export class SimulacaoComponent implements OnInit, OnDestroy {
     const d = this.deltaValue(k);
     if (d === null) return 'n/d';
     const pp = d * 100;
-    return `${Math.abs(pp) < 0.05 ? '' : pp > 0 ? '+' : '−'}${fmtNum(Math.abs(pp))} pp`;
+    return `${Math.abs(pp) < 0.05 ? '' : pp > 0 ? '+' : '−'}${fmtNum(Math.abs(pp))} p.p.`;
   }
 
   /** Verde se melhora, vermelho se piora. Nas utilizações, menos é melhor; na cobertura, mais. */

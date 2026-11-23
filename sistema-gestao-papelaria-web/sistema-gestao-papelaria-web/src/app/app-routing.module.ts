@@ -55,7 +55,13 @@ const routes: Routes = [
   path: 'simulacao',
   loadChildren: () => import('./pages/simulacao/simulacao.module').then(m => m.SimulacaoModule),
   canActivate: [AuthGuard, ModuleGuard],
-  data: { module: 'MODULE_SIMULATION' }
+  data: { module: MODULE_CODES.SIMULATION }
+},
+  {
+  path: 'qualidade',
+  loadChildren: () => import('./pages/qualidade/qualidade.module').then(m => m.QualidadeModule),
+  canActivate: [AuthGuard, ModuleGuard],
+  data: { module: MODULE_CODES.QUALITY }
 },
   {
     path: 'client',
