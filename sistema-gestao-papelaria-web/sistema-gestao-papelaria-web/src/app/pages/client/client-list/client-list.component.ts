@@ -16,6 +16,8 @@ import { SnackbarService } from '@app/services/snackbar.service';
 import { AddClientDialogComponent } from '@app/shared/dialog/client/add-client-dialog/add-client-dialog.component';
 import { AuthService } from '@app/services/auth.service';
 import { User } from '@app/shared/models/user';
+import { StationLogoService } from '@app/services/station-logo.service';
+import { LogoPickerDialogComponent } from '@app/shared/dialog/logo-picker-dialog.component';
 
 import { 
   NbCardModule, 
@@ -58,7 +60,6 @@ export class ClientListComponent implements AfterViewInit, OnInit, OnDestroy {
     'phoneNumber',
     'address',
     'type',
-    'corrector',
     'action'
   ];
 
@@ -85,7 +86,8 @@ export class ClientListComponent implements AfterViewInit, OnInit, OnDestroy {
     private dialog: MatDialog,
     private snackbar: SnackbarService,
     private auth: AuthService,
-    private router: Router
+    private router: Router,
+    private logos: StationLogoService
   ) { }
 
   ngOnInit(): void {
@@ -143,6 +145,30 @@ export class ClientListComponent implements AfterViewInit, OnInit, OnDestroy {
   /** Estações de entrada: PRS1 e HPCMS3 (mesma regra do dashboard). */
   ehEntrada(client: Client): boolean {
     return /^(PRS1|HPCMS3)(?![A-Z0-9])/.test((client.firstName ?? '').trim().toUpperCase());
+  }
+
+  /** Logo da estação (ficheiro de assets ou imagem carregada), ou null. */
+  logoDe(client: Client): string | null {
+    return this.logos.obter(client.firstName);
+  }
+
+  /** Abre o seletor de logotipo; o logo vale para todos os meters da mesma estação (PRS1 M1 e M2). */
+  escolherLogo(client: Client): void {
+    const ref = this.dialog.open(LogoPickerDialogComponent, {
+      width: '480px',
+      data: { nome: client.firstName, atual: this.logoDe(client) }
+    });
+
+    ref.afterClosed().subscribe((valor: string | undefined) => {
+      if (valor === undefined) return;            // cancelou
+      if (valor === '') {
+        this.logos.remover(client.firstName);
+        this.snackbar.success('Logotipo removido.');
+      } else {
+        this.logos.definir(client.firstName, valor);
+        this.snackbar.success('Logotipo atualizado.');
+      }
+    });
   }
 
   inicial(client: Client): string {

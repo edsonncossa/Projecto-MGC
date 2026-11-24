@@ -166,7 +166,7 @@ $ease: cubic-bezier(0.22, 1, 0.36, 1);
 
 .tabela {
   width: 100%;
-  min-width: 920px;
+  min-width: 1040px;
   background: transparent;
   transition: opacity 0.2s $ease;
 
@@ -212,8 +212,7 @@ mat-row {
 .mat-column-phoneNumber { flex: 0.9 1 0; }
 .mat-column-address { flex: 1.3 1 0; min-width: 0; }
 .mat-column-type { flex: 1 1 0; }
-.mat-column-corrector { flex: 0.9 1 0; }
-.mat-column-action { flex: 0 0 200px; justify-content: flex-end; }
+.mat-column-action { flex: 0 0 260px; min-width: 260px; justify-content: center; }
 
 .texto {
   overflow: hidden;
@@ -243,8 +242,13 @@ mat-row {
   flex: 0 0 auto;
   display: grid;
   place-items: center;
-  width: 34px;
-  height: 34px;
+  width: 38px;
+  height: 38px;
+  padding: 0;
+  border: 0;
+  cursor: pointer;
+  overflow: hidden;
+  transition: transform 0.18s $ease, box-shadow 0.18s $ease;
   border-radius: 10px;
   font-weight: 700;
   font-size: 0.85rem;
@@ -254,6 +258,22 @@ mat-row {
   &.entrada {
     color: darken($provisoria, 24%);
     background: rgba($provisoria, 0.2);
+  }
+
+  &:hover { transform: translateY(-1px); box-shadow: 0 0 0 2px rgba($brand-light, 0.35); }
+  &:focus-visible { outline: 2px solid $brand-light; outline-offset: 1px; }
+
+  /* Com logotipo: fundo branco e imagem inteira, sem cortes */
+  &.com-logo {
+    background: #fff;
+    border: 1px solid $borda-suave;
+  }
+
+  img {
+    width: 100%;
+    height: 100%;
+    padding: 2px;
+    object-fit: contain;
   }
 }
 
@@ -305,12 +325,14 @@ mat-row {
 /* ---------- Ações ---------- */
 
 .col-acoes {
-  justify-content: flex-end;
-  text-align: right;
+  justify-content: center;
+  text-align: center;
 }
 
 .acoes {
   display: flex;
+  flex-wrap: nowrap;
+  flex: none;
   align-items: center;
   gap: 0.2rem;
 }
@@ -325,7 +347,9 @@ mat-row {
 .acao {
   display: grid;
   place-items: center;
+  flex: none;
   width: 34px;
+  min-width: 34px;
   height: 34px;
   border: 0;
   border-radius: 8px;
@@ -358,6 +382,11 @@ mat-row {
   &.acao-dashboard:hover {
     background: rgba($brand-light, 0.15);
     color: $brand;
+  }
+
+  &.acao-logo:hover {
+    background: rgba($provisoria, 0.18);
+    color: darken($provisoria, 24%);
   }
 
   &.acao-perigo:hover {

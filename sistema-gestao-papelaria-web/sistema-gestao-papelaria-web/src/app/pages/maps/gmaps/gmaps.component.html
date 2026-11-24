@@ -171,6 +171,10 @@
       <aside class="detalhes" *ngIf="selecionada && detalhesAbertos" role="dialog"
              [attr.aria-label]="'Detalhes de ' + selecionada.firstName">
         <header class="detalhes-topo">
+          <div class="detalhes-identidade">
+            <div class="detalhes-logo" *ngIf="logoSelecionada as logo">
+              <img [src]="logo" [alt]="'Logotipo de ' + selecionada.firstName">
+            </div>
           <div class="detalhes-titulo">
             <strong>{{ selecionada.firstName }}</strong>
             <div class="etiquetas">
@@ -179,6 +183,7 @@
               </span>
               <span class="etiqueta neutra" *ngIf="categoria(selecionada) as cat">{{ cat }}</span>
             </div>
+          </div>
           </div>
           <button type="button" class="fechar" (click)="fecharDetalhes()" aria-label="Fechar detalhes">×</button>
         </header>

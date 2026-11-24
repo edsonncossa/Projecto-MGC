@@ -37,7 +37,13 @@
           <mat-header-cell *matHeaderCellDef mat-sort-header>Estação</mat-header-cell>
           <mat-cell *matCellDef="let client">
             <div class="estacao">
-              <span class="avatar" [class.entrada]="ehEntrada(client)">{{ inicial(client) }}</span>
+              <button type="button" class="avatar" [class.entrada]="ehEntrada(client)" [class.com-logo]="!!logoDe(client)"
+                      (click)="escolherLogo(client)"
+                      [title]="logoDe(client) ? 'Alterar logotipo' : 'Adicionar logotipo'"
+                      [attr.aria-label]="(logoDe(client) ? 'Alterar' : 'Adicionar') + ' logotipo de ' + client.firstName">
+                <img *ngIf="logoDe(client) as logo" [src]="logo" [alt]="'Logotipo de ' + client.firstName">
+                <ng-container *ngIf="!logoDe(client)">{{ inicial(client) }}</ng-container>
+              </button>
               <div class="estacao-info">
                 <strong>{{ client.firstName }}</strong>
                 <small *ngIf="client.id !== undefined && client.id !== null">Cód. {{ client.id }}</small>
@@ -83,14 +89,6 @@
           </mat-cell>
         </ng-container>
 
-        <!-- Corretor -->
-        <ng-container matColumnDef="corrector">
-          <mat-header-cell *matHeaderCellDef mat-sort-header>Corretor</mat-header-cell>
-          <mat-cell *matCellDef="let client">
-            <span class="texto" [class.suave]="!client.corrector?.name">{{ client.corrector?.name || '—' }}</span>
-          </mat-cell>
-        </ng-container>
-
         <!-- Ações -->
         <ng-container matColumnDef="action">
           <mat-header-cell *matHeaderCellDef class="col-acoes">Ações</mat-header-cell>
@@ -103,6 +101,11 @@
               <button type="button" class="acao acao-dashboard" (click)="verNoDashboard(client)"
                       title="Ver consumos no dashboard" [attr.aria-label]="'Ver consumos de ' + client.firstName">
                 <nb-icon icon="bar-chart-2-outline" pack="eva"></nb-icon>
+              </button>
+              <button type="button" class="acao acao-logo" (click)="escolherLogo(client)"
+                      [title]="logoDe(client) ? 'Alterar logotipo' : 'Adicionar logotipo'"
+                      [attr.aria-label]="'Logotipo de ' + client.firstName">
+                <nb-icon [icon]="logoDe(client) ? 'image' : 'image-outline'" pack="eva"></nb-icon>
               </button>
               <span class="separador"></span>
               <button type="button" class="acao" (click)="editarCliente(client)"

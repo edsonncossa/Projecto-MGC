@@ -441,6 +441,34 @@ $texto-suave: #6b7686;
     border-radius: 12px 12px 0 0;
   }
 
+  .detalhes-identidade {
+    display: flex;
+    align-items: center;
+    gap: 0.7rem;
+    min-width: 0;
+  }
+
+  .detalhes-logo {
+    flex: none;
+    display: grid;
+    place-items: center;
+    width: 52px;
+    height: 52px;
+    border-radius: 12px;
+    background: #fff;
+    border: 1px solid $borda;
+    overflow: hidden;
+
+    img {
+      width: 100%;
+      height: 100%;
+      padding: 4px;
+      object-fit: contain;
+    }
+  }
+
+  .detalhes-titulo { min-width: 0; }
+
   .detalhes-titulo strong {
     display: block;
     font-size: 1.05rem;

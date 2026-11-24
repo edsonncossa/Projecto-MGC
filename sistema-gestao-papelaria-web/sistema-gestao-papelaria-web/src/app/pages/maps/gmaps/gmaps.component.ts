@@ -9,6 +9,7 @@ import * as L from 'leaflet';
 
 import { ClientService } from '@app/services/client.service';
 import { StationLocation } from '@app/shared/models/client';
+import { StationLogoService } from '@app/services/station-logo.service';
 
 /** Acima desta distância, a nova posição gera um aviso antes de confirmar. */
 const LIMITE_AVISO_METROS = 1000;
@@ -146,6 +147,7 @@ export class GmapsComponent implements OnInit, OnDestroy {
     private route: ActivatedRoute,
     private router: Router,
     httpBackend: HttpBackend,
+    private logos: StationLogoService,
   ) {
     this.httpExterno = new HttpClient(httpBackend);
   }
@@ -403,6 +405,11 @@ export class GmapsComponent implements OnInit, OnDestroy {
       lista.push({ rotulo: campo.rotulo, valor });
     }
     return lista;
+  }
+
+  /** Logo da estação escolhida (definido na lista de estações), ou null. */
+  get logoSelecionada(): string | null {
+    return this.logos.obter(this.selecionada?.firstName);
   }
 
   get urlGoogleMaps(): string | null {
